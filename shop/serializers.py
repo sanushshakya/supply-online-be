@@ -106,6 +106,18 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = "__all__"
 
+    COST_FIELDS = ("cost_price", "profit_margin")
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        # Internal callers without a request (staff-only views) keep full data;
+        # any request from a non-staff user never sees cost fields.
+        if request is not None and not getattr(request.user, "is_staff", False):
+            for field in self.COST_FIELDS:
+                data.pop(field, None)
+        return data
+
 
 class PromotionSerializer(serializers.ModelSerializer):
     class Meta:

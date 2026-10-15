@@ -282,3 +282,51 @@ class PromotionSerializerTest(TestCase):
         }
         serializer = PromotionSerializer(data=invalid_data)
         self.assertFalse(serializer.is_valid())
+
+
+class ProductCostFieldVisibilityTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import AnonymousUser
+        from rest_framework.test import APIRequestFactory
+
+        self.factory = APIRequestFactory()
+        self.anon = AnonymousUser()
+        category = Category.objects.create(name="Cat")
+        supplier = Supplier.objects.create(name="Sup")
+        self.product = Product.objects.create(
+            name="P",
+            price="10",
+            cost_price="5",
+            profit_margin="100",
+            barcode="999000111",
+            description="d",
+            category=category,
+            supplier=supplier,
+            stock_quantity=5,
+        )
+
+    def _request(self, user):
+        request = self.factory.get("/")
+        request.user = user
+        return request
+
+    def test_public_product_hides_cost_fields(self):
+        data = ProductSerializer(
+            self.product, context={"request": self._request(self.anon)}
+        ).data
+        self.assertNotIn("cost_price", data)
+        self.assertNotIn("profit_margin", data)
+
+    def test_staff_product_keeps_cost_fields(self):
+        staff = User.objects.create_user("staffer", "s@example.com", "pw", is_staff=True)
+        data = ProductSerializer(
+            self.product, context={"request": self._request(staff)}
+        ).data
+        self.assertIn("cost_price", data)
+        self.assertIn("profit_margin", data)
+
+    def test_anonymous_product_api_hides_cost_fields(self):
+        response = self.client.get(f"/shop/api/products/{self.product.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("cost_price", response.json())
+        self.assertNotIn("profit_margin", response.json())

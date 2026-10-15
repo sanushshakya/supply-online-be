@@ -37,11 +37,15 @@ if os.getenv("ALLOWED_HOSTS", None):
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-local-dev-only")
+# Outside the local environment SECRET_KEY must come from the environment.
+if ENVIRONMENT == "local":
+    SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-local-dev-only")
+else:
+    SECRET_KEY = os.getenv("SECRET_KEY", None)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-
-DEBUG = True
+# DJANGO_DEBUG=true|false; defaults to True only for the local environment.
+DEBUG = os.getenv("DJANGO_DEBUG", "true" if ENVIRONMENT == "local" else "false").lower() == "true"
 
 # Define the log directory path
 LOG_DIR = f"{BASE_DIR}/logs/"

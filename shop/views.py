@@ -725,9 +725,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
             # serializing the full request_data is unsafe as the bad users might try to gain admin privileges
             # we will only pick the username, email, password
-            print('HI')
             request_data = request.data.copy()
-            print(request_data)
             user = None
             user_profile = None
 

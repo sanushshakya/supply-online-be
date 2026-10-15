@@ -89,3 +89,4 @@ Werkzeug==3.0.1
 whitenoise==6.6.0
 xmltodict==0.13.0
 yarl==1.23.0
+setuptools<70
