@@ -1,9 +1,12 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone as dj_timezone
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationEvent(models.Model):
@@ -63,7 +66,12 @@ def emit(event_type, data):
     def dispatch():
         from shop.tasks import deliver_integration_event  # lazy: avoid import cycle
 
-        deliver_integration_event.delay(event.pk)
+        try:
+            deliver_integration_event.delay(event.pk)
+        except Exception as exc:  # noqa: BLE001 - broker down: the 30 s sweep picks it up
+            logger.warning(
+                "Could not queue integration event %s: %s", event.pk, type(exc).__name__
+            )
 
     transaction.on_commit(dispatch)
     return event

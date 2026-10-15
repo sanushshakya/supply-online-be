@@ -5,13 +5,14 @@ from unittest.mock import Mock, patch
 
 import requests
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from shop.integration import signing
 from shop.integration.models import IntegrationEvent, emit
-from shop.models import Order, OrderItem, UserProfile
+from shop.models import Order, OrderItem, OrderPaymentStatus, UserProfile
 from shop.tasks import deliver_integration_event, deliver_integration_events
 from shop.tests.test_stock import make_product
 
@@ -86,17 +87,33 @@ URL = "https://iq.example.com/integrations/m18/events/"
 @override_settings(IQ_WEBHOOK_URL=URL, IQ_WEBHOOK_SECRET=SECRET)
 class EmitDispatchTests(TestCase):
     def test_emit_dispatches_on_commit(self):
-        with patch("shop.tasks.deliver_integration_event.delay") as delay:
-            with self.captureOnCommitCallbacks(execute=True) as callbacks:
-                event = emit("order.paid", {"order_id": "x"})
-            self.assertEqual(len(callbacks), 1)
-            delay.assert_called_once_with(event.pk)
+        with patch(
+            "shop.tasks.deliver_integration_event.delay"
+        ) as delay, self.captureOnCommitCallbacks(execute=True) as callbacks:
+            event = emit("order.paid", {"order_id": "x"})
+        self.assertEqual(len(callbacks), 1)
+        delay.assert_called_once_with(event.pk)
+
+    def test_rollback_leaves_no_row_and_dispatches_nothing(self):
+        with patch(
+            "shop.tasks.deliver_integration_event.delay"
+        ) as delay, self.captureOnCommitCallbacks(execute=True) as callbacks:
+            try:
+                with transaction.atomic():
+                    emit("order.paid", {"order_id": "x"})
+                    raise RuntimeError("rollback")
+            except RuntimeError:
+                pass
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        self.assertEqual(callbacks, [])
+        delay.assert_not_called()
 
     @override_settings(IQ_WEBHOOK_URL="")
     def test_no_url_configured_emits_nothing(self):
-        with patch("shop.tasks.deliver_integration_event.delay") as delay:
-            with self.captureOnCommitCallbacks(execute=True):
-                result = emit("order.paid", {"order_id": "x"})
+        with patch(
+            "shop.tasks.deliver_integration_event.delay"
+        ) as delay, self.captureOnCommitCallbacks(execute=True):
+            result = emit("order.paid", {"order_id": "x"})
         self.assertIsNone(result)
         self.assertEqual(IntegrationEvent.objects.count(), 0)
         delay.assert_not_called()
@@ -129,7 +146,7 @@ class PaidWebhookEmitTests(TestCase):
             base_total=Decimal("10.00"),
         )
 
-    def post_paid(self):
+    def post_paid(self, delay_side_effect=None):
         event = {
             "type": "checkout.session.completed",
             "data": {"object": {"id": "cs_emit", "payment_status": "paid"}},
@@ -137,7 +154,9 @@ class PaidWebhookEmitTests(TestCase):
         with patch("stripe.Webhook.construct_event", return_value=event), patch(
             "stripe.checkout.Session.retrieve",
             return_value=Mock(id="cs_emit", payment_status="paid"),
-        ), patch("shop.tasks.deliver_integration_event.delay"):
+        ), patch(
+            "shop.tasks.deliver_integration_event.delay", side_effect=delay_side_effect
+        ), self.captureOnCommitCallbacks(execute=True):
             return self.client.post(
                 reverse("stripe-webhook"),
                 data=json.dumps(event),
@@ -164,6 +183,16 @@ class PaidWebhookEmitTests(TestCase):
             },
         )
 
+    def test_dispatch_failure_does_not_fail_webhook(self):
+        response = self.post_paid(delay_side_effect=ConnectionError("broker down"))
+        self.assertEqual(response.status_code, 200)
+        event = IntegrationEvent.objects.get()
+        self.assertEqual(event.status, "pending")
+        self.order.refresh_from_db()
+        self.assertEqual(
+            self.order.stripe_payment_status, OrderPaymentStatus.PAID.value
+        )
+
     def test_duplicate_paid_webhook_emits_once(self):
         self.assertEqual(self.post_paid().status_code, 200)
         self.assertEqual(self.post_paid().status_code, 200)
@@ -180,9 +209,10 @@ def fake_response(status_code):
 @override_settings(IQ_WEBHOOK_URL=URL, IQ_WEBHOOK_SECRET=SECRET)
 class DeliveryTests(TestCase):
     def setUp(self):
-        with patch("shop.tasks.deliver_integration_event.delay"):
-            with self.captureOnCommitCallbacks(execute=True):
-                self.event = emit("order.paid", {"order_id": "x"})
+        with patch("shop.tasks.deliver_integration_event.delay"), self.captureOnCommitCallbacks(
+            execute=True
+        ):
+            self.event = emit("order.paid", {"order_id": "x"})
 
     def test_success_marks_delivered_and_signs_exact_body(self):
         with patch("shop.tasks.requests.post", return_value=fake_response(200)) as post:
@@ -213,6 +243,35 @@ class DeliveryTests(TestCase):
         self.assertEqual(self.event.status, "pending")
         self.assertGreater(self.event.next_attempt_at, timezone.now())
         self.assertIn("500", self.event.last_error)
+
+    def test_backoff_is_two_to_the_attempts_seconds(self):
+        IntegrationEvent.objects.filter(pk=self.event.pk).update(attempts=4)
+        before = timezone.now()
+        with patch("shop.tasks.requests.post", return_value=fake_response(503)):
+            deliver_integration_event(self.event.pk)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.attempts, 5)
+        delay = (self.event.next_attempt_at - before).total_seconds()
+        self.assertAlmostEqual(delay, 32, delta=5)
+
+    def test_backoff_capped_at_one_hour(self):
+        IntegrationEvent.objects.filter(pk=self.event.pk).update(attempts=15)
+        before = timezone.now()
+        with patch("shop.tasks.requests.post", return_value=fake_response(503)):
+            deliver_integration_event(self.event.pk)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.status, "pending")
+        delay = (self.event.next_attempt_at - before).total_seconds()
+        self.assertAlmostEqual(delay, 3600, delta=5)
+
+    def test_redirect_not_followed_and_counts_as_failure(self):
+        with patch("shop.tasks.requests.post", return_value=fake_response(302)) as post:
+            self.assertFalse(deliver_integration_event(self.event.pk))
+        self.assertIs(post.call_args.kwargs["allow_redirects"], False)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.attempts, 1)
+        self.assertEqual(self.event.status, "pending")
+        self.assertIn("302", self.event.last_error)
 
     def test_exception_counts_as_failed_attempt(self):
         with patch(

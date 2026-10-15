@@ -425,8 +425,9 @@ def deliver_integration_event(event_pk):
                     "X-Integration-Signature": sign(secret, body),
                 },
                 timeout=10,
+                allow_redirects=False,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - any failure is a retryable attempt
             logger.warning("IQ delivery of event %s failed: %s", event.event_id, type(exc).__name__)
             _record_failure(event, f"{type(exc).__name__}: {exc}")
             return False
