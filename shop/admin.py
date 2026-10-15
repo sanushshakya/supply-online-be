@@ -10,6 +10,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.shortcuts import render
 from shop.forms import CartItemExportActionForm
+from shop.integration.models import IntegrationEvent
 from .models import (
     Category,
     Supplier,
@@ -701,3 +702,16 @@ admin.site.register(DeliveryOption, DeliveryOptionAdmin)
 admin.site.register(TaxCategory, TaxCategoryAdmin)
 admin.site.register(LocationInStore, LocationInStoreAdmin)
 admin.site.register(Voucher, VoucherAdmin)
+
+
+@admin.register(IntegrationEvent)
+class IntegrationEventAdmin(admin.ModelAdmin):
+    list_display = ("event_type", "direction", "status", "attempts", "created_at")
+    list_filter = ("direction", "status", "event_type")
+    readonly_fields = [f.name for f in IntegrationEvent._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

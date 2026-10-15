@@ -1261,3 +1261,5 @@ class PushSubscription(models.Model):
 
     def __str__(self):
         return f"Push subscription for {self.user.email}"
+
+from shop.integration.models import IntegrationEvent  # noqa: E402,F401
