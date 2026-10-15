@@ -2427,8 +2427,6 @@ class StripeWebhookTestCase(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        # the paid-order webhook awards loyalty points via user.userprofile
-        UserProfile.objects.create(user=self.user)
 
         self.product = Product.objects.create(
             name="Test Product",
@@ -2465,6 +2463,7 @@ class StripeWebhookTestCase(TestCase):
         mock_retrieve_session,
         mock_construct_event,
     ):
+        UserProfile.objects.create(user=self.user)
         mock_construct_event.return_value = {
             "type": "checkout.session.completed",
             "data": {"object": {"id": "cs_test_id", "payment_status": "paid"}},
@@ -2500,6 +2499,55 @@ class StripeWebhookTestCase(TestCase):
 
         # Check if upload epos dump in s3 was called with the correct arguments, currently turned off
         # mock_upload_product_barcode_and_bought_quantity_for_backend_epos.assert_called_once()
+
+    def _post_paid_event(self, mock_retrieve_session, mock_construct_event):
+        event = {
+            "type": "checkout.session.completed",
+            "data": {"object": {"id": "cs_test_id", "payment_status": "paid"}},
+        }
+        mock_construct_event.return_value = event
+        mock_retrieve_session.return_value = Mock(
+            id="cs_test_id", payment_status="paid"
+        )
+        return self.client.post(
+            self.url,
+            data=json.dumps(event),
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="dummy_signature",
+        )
+
+    @patch("stripe.Webhook.construct_event")
+    @patch("stripe.checkout.Session.retrieve")
+    def test_paid_webhook_without_userprofile_still_commits(
+        self, mock_retrieve_session, mock_construct_event
+    ):
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        response = self._post_paid_event(mock_retrieve_session, mock_construct_event)
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(
+            self.order.stripe_payment_status, OrderPaymentStatus.PAID.value
+        )
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 98)
+
+    @patch("stripe.Webhook.construct_event")
+    @patch("stripe.checkout.Session.retrieve")
+    def test_duplicate_paid_webhook_is_idempotent(
+        self, mock_retrieve_session, mock_construct_event
+    ):
+        from rewards.models import LoyaltyTransaction
+
+        UserProfile.objects.create(user=self.user)
+        first = self._post_paid_event(mock_retrieve_session, mock_construct_event)
+        count_after_first = LoyaltyTransaction.objects.count()
+        second = self._post_paid_event(mock_retrieve_session, mock_construct_event)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 98)
+        self.assertEqual(count_after_first, 1)
+        self.assertEqual(LoyaltyTransaction.objects.count(), 1)
 
     @patch("stripe.Webhook.construct_event")
     @patch("stripe.checkout.Session.retrieve")

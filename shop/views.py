@@ -2991,30 +2991,60 @@ def stripe_webhook(request):
 
                 else:
                     associated_order = associated_orders.first()
+                    already_paid = False
                     with transaction.atomic():
-                        associated_order.stripe_payment_status = (
-                            OrderPaymentStatus.PAID.value
+                        # re-fetch under a row lock so duplicate deliveries of this
+                        # event cannot both pass the paid check
+                        associated_order = Order.objects.select_for_update().get(
+                            pk=associated_order.pk
                         )
-                        associated_order.is_temporary = (
-                            False  # the order is no longer temporary
+                        if (
+                            associated_order.stripe_payment_status
+                            == OrderPaymentStatus.PAID.value
+                        ):
+                            already_paid = True
+                        else:
+                            associated_order.stripe_payment_status = (
+                                OrderPaymentStatus.PAID.value
+                            )
+                            associated_order.is_temporary = (
+                                False  # the order is no longer temporary
+                            )
+                            associated_order.full_clean()
+                            associated_order.save()
+                            logger.info("Payment successful. Order details updated")
+
+                            # loyalty points awarding logic; in a savepoint so a
+                            # failure here can never block the paid/stock commit
+                            try:
+                                with transaction.atomic():
+                                    from rewards.signals import order_paid
+
+                                    order_paid.send(
+                                        sender=Order,
+                                        order_reference=str(associated_order.order_id),
+                                        user_profile=associated_order.user.userprofile,
+                                        order_amount=associated_order.total_amount,
+                                    )
+                            except Exception:
+                                logger.warning(
+                                    "Loyalty award failed for paid order %s",
+                                    associated_order.order_id,
+                                    exc_info=True,
+                                )
+
+                            # reduce the product stock once the user has paid; locks
+                            # rows and never raises on a shortfall (logged instead)
+                            commit_paid_order_stock(associated_order)
+
+                    if already_paid:
+                        logger.info(
+                            "Duplicate paid webhook ignored for order %s",
+                            associated_order.order_id,
                         )
-                        associated_order.full_clean()
-                        associated_order.save()
-                        logger.info("Payment successful. Order details updated")
-
-                        # loyalty points awarding logic for instore purchase
-                        from rewards.signals import order_paid
-
-                        order_paid.send(
-                            sender=Order,
-                            order_reference=str(associated_order.order_id),
-                            user_profile=associated_order.user.userprofile,
-                            order_amount=associated_order.total_amount,
+                        return JsonResponse(
+                            {"status": "success"}, status=status.HTTP_200_OK
                         )
-
-                        # reduce the product stock once the user has paid; locks
-                        # rows and never raises on a shortfall (logged instead)
-                        commit_paid_order_stock(associated_order)
 
                     email_subject = "Order Confirmation"
                     text_email_message = dedent(f"""
