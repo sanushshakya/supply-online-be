@@ -30,8 +30,11 @@ def verify(secret, body, header, now=None, tolerance=300):
         return False
     if len(given) != 64 or any(c not in "0123456789abcdef" for c in given):
         return False
-    t = int(t_str)
-    current = int(time.time()) if now is None else int(now)
-    if abs(current - t) > tolerance:
+    try:
+        t = int(t_str)
+        current = int(time.time()) if now is None else int(now)
+        if abs(current - t) > tolerance:
+            return False
+        return hmac.compare_digest(_mac(secret, t, body), given)
+    except (ValueError, TypeError):
         return False
-    return hmac.compare_digest(_mac(secret, t, body), given)

@@ -49,6 +49,10 @@ class SigningTests(TestCase):
         )
         self.assertFalse(signing.verify(SECRET, BODY, "t=\u00b2,v1=ab", now=1000))
 
+    def test_verify_huge_timestamp_returns_false(self):
+        header = "t=" + "1" * 5000 + ",v1=" + "a" * 64
+        self.assertFalse(signing.verify(SECRET, BODY, header, now=1000))
+
     def test_verify_rejects_noncanonical_header(self):
         good = signing.sign(SECRET, BODY, now=1000)
         t, v1 = good.split(",")
