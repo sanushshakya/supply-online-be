@@ -19,6 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Selected environment
+# ENV must be "prod" or "staging" in any deployment; the "local" default uses an insecure SECRET_KEY and DEBUG on.
 ENVIRONMENT = os.getenv("ENV", "local").lower()
 
 ALLOWED_HOSTS = [
