@@ -29,6 +29,28 @@ class SigningTests(TestCase):
         self.assertFalse(signing.verify("", BODY, header, now=1000))
         self.assertFalse(signing.verify("other", BODY, header, now=1000))
 
+    def test_verify_non_ascii_signature_returns_false(self):
+        self.assertFalse(signing.verify(SECRET, BODY, "t=1000,v1=\u00e9", now=1000))
+        self.assertFalse(
+            signing.verify(SECRET, BODY, "t=1000,v1=" + "\u00e9" * 64, now=1000)
+        )
+        self.assertFalse(signing.verify(SECRET, BODY, "t=\u00b2,v1=ab", now=1000))
+
+    def test_verify_rejects_noncanonical_header(self):
+        good = signing.sign(SECRET, BODY, now=1000)
+        t, v1 = good.split(",")
+        self.assertTrue(signing.verify(SECRET, BODY, good, now=1000))
+        for bad in (
+            f"{t}, {v1}",
+            f"{t},{v1},{v1}",
+            f"{t},{v1},extra=1",
+            f"t=+1000,{v1}",
+            f"{v1},{t}",
+            f"{t},{v1.upper()}",
+            f"{t},v1={v1[3:-1]}",
+        ):
+            self.assertFalse(signing.verify(SECRET, BODY, bad, now=1000), bad)
+
 
 class EmitTests(TestCase):
     def test_emit_builds_envelope(self):

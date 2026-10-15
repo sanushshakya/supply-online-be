@@ -19,12 +19,18 @@ def verify(secret, body, header, now=None, tolerance=300):
     """True only if ``header`` is a fresh, valid signature of ``body``."""
     if not secret or not header or not isinstance(header, str):
         return False
-    try:
-        parts = dict(p.strip().split("=", 1) for p in header.split(","))
-        t = int(parts["t"])
-        given = parts["v1"]
-    except (ValueError, KeyError):
+    parts = header.split(",")
+    if len(parts) != 2:
         return False
+    t_part, v_part = parts
+    if not t_part.startswith("t=") or not v_part.startswith("v1="):
+        return False
+    t_str, given = t_part[2:], v_part[3:]
+    if not (t_str.isascii() and t_str.isdigit()):
+        return False
+    if len(given) != 64 or any(c not in "0123456789abcdef" for c in given):
+        return False
+    t = int(t_str)
     current = int(time.time()) if now is None else int(now)
     if abs(current - t) > tolerance:
         return False
