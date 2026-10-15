@@ -2427,6 +2427,8 @@ class StripeWebhookTestCase(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
+        # the paid-order webhook awards loyalty points via user.userprofile
+        UserProfile.objects.create(user=self.user)
 
         self.product = Product.objects.create(
             name="Test Product",
@@ -2493,6 +2495,8 @@ class StripeWebhookTestCase(TestCase):
             self.order.stripe_payment_status, OrderPaymentStatus.PAID.value
         )
         self.assertFalse(self.order.is_temporary)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 98)
 
         # Check if upload epos dump in s3 was called with the correct arguments, currently turned off
         # mock_upload_product_barcode_and_bought_quantity_for_backend_epos.assert_called_once()

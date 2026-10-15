@@ -13,6 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from shop.models import Cart, CartItem, Order, OrderItem, Product, UserProfile
 from shop.stock import (
     assert_cart_stock,
+    commit_paid_order_stock,
     lock_products,
     release_order_stock,
     reserve_order_stock,
@@ -317,3 +318,32 @@ class CheckoutStockTests(APITestCase):
         response = self.post()
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.data["error"], "boom")
+
+
+class CommitPaidOrderStockTests(TestCase):
+    def test_paid_order_decrements_stock(self):
+        product = make_product(stock=5)
+        order = make_order((product, 2))
+        self.assertEqual(commit_paid_order_stock(order), [])
+        product.refresh_from_db()
+        self.assertEqual(product.stock_quantity, 3)
+
+    def test_paid_order_with_short_stock_does_not_crash(self):
+        product = make_product(stock=1)
+        order = make_order((product, 3))
+        items = commit_paid_order_stock(order)
+        product.refresh_from_db()
+        self.assertEqual(product.stock_quantity, 0)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["requested"], 3)
+        self.assertEqual(items[0]["available"], 1)
+
+    def test_reserved_order_not_decremented_twice(self):
+        product = make_product(stock=5)
+        order = make_order((product, 2))
+        reserve_order_stock(order)
+        product.refresh_from_db()
+        self.assertEqual(product.stock_quantity, 3)
+        self.assertEqual(commit_paid_order_stock(order), [])
+        product.refresh_from_db()
+        self.assertEqual(product.stock_quantity, 3)

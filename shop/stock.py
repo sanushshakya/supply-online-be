@@ -5,10 +5,14 @@ that order is deleted, expires or is abandoned. Callers that reserve or release
 must be inside, or are wrapped by, `transaction.atomic()`.
 """
 
+import logging
+
 from django.db import transaction
 
 from shop.exceptions import InsufficientStockError
 from shop.models import Product
+
+logger = logging.getLogger(__name__)
 
 
 def shortfall(product, requested):
@@ -106,3 +110,32 @@ def release_order_stock(order):
             product.save(update_fields=["stock_quantity"])
         order.stock_reserved = False
         order.save(update_fields=["stock_reserved"])
+
+
+def commit_paid_order_stock(order):
+    """Decrement stock for a paid order, never raising on a shortfall.
+
+    Each product is decremented by min(requested, available) under a row lock and
+    the uncovered remainder is returned as shortfall dicts (and logged). No-op
+    returning [] if the order's stock was already reserved. Must be called inside
+    transaction.atomic(), together with the paid-status update.
+    """
+    if order.stock_reserved:
+        return []
+    quantities = _order_quantities(order)
+    products = lock_products(quantities)
+    items = _shortfalls(quantities, products)
+    for product_id, requested in quantities.items():
+        product = products.get(product_id)
+        if product is None:
+            continue
+        available = product.stock_quantity if product.is_active else 0
+        take = min(requested, max(available, 0))
+        if take:
+            product.stock_quantity -= take
+            product.save(update_fields=["stock_quantity"])
+    for item in items:
+        logger.warning(
+            "Order %s paid with insufficient stock: %s", order.order_id, item
+        )
+    return items

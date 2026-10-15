@@ -28,7 +28,12 @@ from django.middleware.csrf import get_token
 from django.conf import settings
 from .utils import send_email
 from .exceptions import InsufficientStockError
-from .stock import assert_cart_stock, lock_products, shortfall
+from .stock import (
+    assert_cart_stock,
+    commit_paid_order_stock,
+    lock_products,
+    shortfall,
+)
 from .utils import generate_pdf
 from .forms import OrderStatusFilterForm
 from django.urls import reverse
@@ -2986,40 +2991,30 @@ def stripe_webhook(request):
 
                 else:
                     associated_order = associated_orders.first()
-                    associated_order.stripe_payment_status = (
-                        OrderPaymentStatus.PAID.value
-                    )
-                    associated_order.is_temporary = (
-                        False  # the order is no longer temporary
-                    )
-                    associated_order.full_clean()
-                    associated_order.save()
-                    logger.info("Payment successful. Order details updated")
-                    
-                    #loyalty points awarding logic for instore purchase
-                    from rewards.signals import order_paid
-                    order_paid.send(
-                        sender=Order,
-                        order_reference=str(associated_order.order_id),
-                        user_profile=associated_order.user.userprofile,
-                        order_amount=associated_order.total_amount,
-                    )
-
-                    # reduce the product stock once the user has successfully made the payment
-                    for order_item in associated_order.order_items_from_order.all():
-                        product_id = order_item.product.product_id
-                        quantity = order_item.quantity
-
-                        # Get the related product
-                        product = Product.objects.get(product_id=product_id)
-
-                        remaining_product_stock_quantity = (
-                            product.stock_quantity - quantity
+                    with transaction.atomic():
+                        associated_order.stripe_payment_status = (
+                            OrderPaymentStatus.PAID.value
                         )
-                        if remaining_product_stock_quantity < 0:
-                            raise ValueError("product stock can't go negative")
-                        product.stock_quantity = remaining_product_stock_quantity
-                        product.save()
+                        associated_order.is_temporary = (
+                            False  # the order is no longer temporary
+                        )
+                        associated_order.full_clean()
+                        associated_order.save()
+                        logger.info("Payment successful. Order details updated")
+
+                        # loyalty points awarding logic for instore purchase
+                        from rewards.signals import order_paid
+
+                        order_paid.send(
+                            sender=Order,
+                            order_reference=str(associated_order.order_id),
+                            user_profile=associated_order.user.userprofile,
+                            order_amount=associated_order.total_amount,
+                        )
+
+                        # reduce the product stock once the user has paid; locks
+                        # rows and never raises on a shortfall (logged instead)
+                        commit_paid_order_stock(associated_order)
 
                     email_subject = "Order Confirmation"
                     text_email_message = dedent(f"""
