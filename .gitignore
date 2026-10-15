@@ -1,0 +1,15 @@
+**__pycache__**
+.vscode
+.coverage
+logs/*
+.venv
+staticfiles/
+**/.DS_Store
+generated_barcodes/
+# secrets and local data: never commit
+.env/
+.env.*
+!.env.example
+*.pem
+*.key
+db.sqlite3

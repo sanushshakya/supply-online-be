@@ -1,0 +1,86 @@
+<div class="modal fade" id="batchUpdateModal" tabindex="-1" aria-labelledby="batchUpdateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="batchUpdateModalLabel">Batch Update</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Form for batch products update -->
+        <form id="batchUpdateForm" method="POST" action="{% url 'update_products_in_batch_by_barcodes' %}">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="batchProductUpdateBarcode" class="form-label">Product Barcode</label>
+            <input type="text" class="form-control" id="batchUpdateProductBarcode" name="batchUpdateProductBarcode">
+          </div>
+
+          <hr class="my-4">
+          <!-- Spans to display product details -->
+          <div class="mt-5 mb-3">
+            <label for="batchProductUpdateName" class="form-label">Product Name:</label>
+            <span id="batchProductUpdateNameSpan"></span>
+          </div>
+
+          <div class="mb-3">
+            <label for="batchProductUpdatePrice" class="form-label">Product Price:</label>
+            <span id="batchProductUpdatePriceSpan"></span>
+          </div>
+
+          <!-- Add Product Button (Initially hidden) -->
+          <div class="d-flex mb-3">
+            <button type="button" class="btn btn-success me-3" id="addBarcodeBtn" style="display:none;">Add
+              Barcode</button>
+            <button type="button" class="btn btn-danger me-3" id="cancelBarcodeBtn" style="display:none;">Cancel
+              Barcode</button>
+          </div>
+
+          <div class="mb-3">
+            <label for="productBarcodesTextarea" class="form-label">Products to Batch Update</label>
+            <textarea class="form-control" id="productBarcodesTextarea" name="product_barcodes" readonly
+              required></textarea>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="department" class="form-label">Product Department</label>
+            <!-- Dropdown for selecting department -->
+            <select class="form-select" id="batch-select-department" name="new_department_for_batch">
+              <option value="" selected disabled>Select Product Department</option>
+              {% for department in product_departments %}
+              <option value="{{ department.id }}">{{ department.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="supplier" class="form-label">Supplier</label>
+            <!-- Dropdown for selecting supplier -->
+            <select class="form-select" id="batch-select-supplier" name="new_supplier_for_batch">
+              <option value="" selected disabled>Select Supplier</option>
+              {% for supplier in suppliers %}
+              <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="location_in_store" class="form-label">Location in Store</label>
+            <!-- Dropdown for selecting location in store -->
+            <select class="form-select" id="batch-select-location-in-store" name="new_location_for_batch">
+              <option value="" selected disabled>Location in Store</option>
+              {% for location in locations_in_store %}
+              <option value="{{ location.id }}">{{ location.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="batchUpdateProductsBtn">Update Products</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>

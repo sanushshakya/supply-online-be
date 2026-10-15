@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{% static 'shop/images/m18_logo_blue.png' %}">
+    <title>M18 Foods</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Custom CSS for additional styling */
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Navbar styles */
+        .navbar {
+            background-color: #2CCC92;
+        }
+
+        .navbar-brand,
+        .navbar-nav .nav-link {
+            color: #fff !important;
+            /* Force white color */
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: rgba(255, 255, 255, 0.6) !important;
+            /* Force orange color on hover */
+        }
+
+        /* Section styles */
+        .section {
+            padding: 50px 0;
+        }
+
+        /* Section styles */
+        .section {
+            padding: 50px 0;
+            text-align: justify;
+        }
+
+        #section1 {
+            background-color: #f8f9fa;
+        }
+
+        #section2 {
+            background-color: #e9ecef;
+            text-align: center;
+        }
+
+        /* Products and Services styles */
+        #section3 {
+            background-color: #f8f9fa;
+        }
+
+        /* Leadership Team styles */
+        #section4 {
+            background-color: #2CCC92;
+            color: #fff;
+            text-align: center;
+        }
+
+        /* Our Suppliers styles */
+        #section5 {
+            background-color: #fff;
+        }
+
+        .img-fluid {
+            border-radius: 10px;
+            /* Rounded corners */
+            height: 300px;
+            width: auto;
+        }
+
+        /* Footer styles */
+        footer {
+            background-color: #343a40;
+            color: #fff;
+            padding: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">M18 Foods</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#section1">Introduction</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#section2">Our History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#section3">Products and Services</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#section4">Leadership Team</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#section5">Our Suppliers</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+
+    <!-- Introduction -->
+    <section id="section1" class="section">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 order-md-1">
+                    <img src="{% static 'shop/images/m18_logo_blue.png' %}" alt="Image 2" class="img-fluid">
+                </div>
+                <div class="col-md-6 order-md-2">
+                    <div class="section-content">
+                        <h2>Introduction</h2>
+                        <p>M18 Food Limited is the UK's leading World Foods retailer and wholesaler in the market.
+                            We specialize ni Oriental, African, Asian, Caribbean, American, Mediterranean, European and
+                            many more food products from around the globe. We have a wide network of more that 400
+                            suppliers and distributors. As UK market is growing for world foods we are committed to meet
+                            the customers demand. We offer one of
+                            the quickest delivery services in the World Foods sector, and has one of the best stocked
+                            cash and carries for world foods in the UK. Whatever your World Food needs, M18 can meet
+                            them!</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Our History -->
+    <section id="section2" class="section" style="padding: 120px;">
+        <div class="container">
+            <div class="row">
+                <div class="section-content">
+                    <h2>Our History</h2>
+                    <p>M18 Food Limited was established in 2010 with the vision to create a wider market for world
+                        foods from around the globe in UK and Europe. Since the establishment we've served
+                        the thousands of nation's retailers, restaurants, wholesalers and food businesses with
+                        products from around the globe. From humble beginnings of one small store offering a
+                        handful of foods, we now offer more than 20000 products from over 1500 beloved brands.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Products and Services -->
+    <section id="section3" class="section">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 order-md-1">
+                    <img src="{% static 'shop/images/products.jpeg' %}" alt="Image 2" class="img-fluid">
+                </div>
+                <div class="col-md-6 order-md-2">
+                    <div class="section-content">
+                        <h2>Products and Services</h2>
+                        <p>We have more than 20,000 world food products in our supermarket and are engrossed in
+                            wholesale supply of Korean, Thailand, Japanese,
+                            Chinese, Vietnamese, Malaysian, Indian, Turkish, American and Afro Caribbean foods to
+                            restaurants and retail shops. With increasing demand in online shopping we have putting hand
+                            on Ecommerce from 2024. Our Ecommerce platform is under construction. We are planning to
+                            Launch our platform by this summer.
+                            We have helped many brands establish themselves in the market and have helped educate
+                            clients on the value of world foods in an
+                            increasingly crowded UK market.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Leadership Team -->
+    <section id="section4" class="section" style="padding: 120px;">
+        <div class="container">
+            <div class="row">
+                <div class="section-content">
+                    <h2>Leadership Team</h2>
+                    <p>Our leadership team comprises proven experts who have been transforming business operations
+                        for decades. Committed to connect the flavour of the world foods to western market.
+                        Over the years, we've had a positive impact on many businesses, helping them to reach their
+                        potential. We have been able to create a excellent base of customers
+                        who are loving and fancying world foods.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Our Suppliers -->
+    <section id="section5" class="section">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 order-md-2">
+                    <img src="{% static 'shop/images/supplier.jpeg' %}" alt="Image 2" class="img-fluid"
+                        style="margin-left: 100px;">
+                </div>
+                <div class="col-md-6 order-md-1">
+                    <div class="section-content">
+                        <h2>Our Suppliers</h2>
+                        <p>
+                            We have partnered with more than 300 suppliers to meet the demand of our
+                            customers. We have been trading the some supplier for more than a decade. We
+                            are delighted to highlight some longest trading suppliers as SOP International,
+                            Korea Foods, Interlink, Hmart, Asco Foods, Wanis International, Manning Impex, Aytac, West
+                            Mil, Milgate etc.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <div class="container mt-5 mb-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <a href="https://www.google.com/search?sts=11&gl=GB&tbm=shop&tbs=root_cat:519919&q=baking+%26+cooking+ingredients&lsf=seller:347507402,store_mid:576460780306552536,store:13385473798810943357,s:l&sa=X&ved=2ahUKEwjlg463wfqAAxVDXEEAHewqDooQyPUBegQIVBAG&biw=1067&bih=526&dpr=1.5"
+                    class="btn btn-primary btn-lg btn-block">Find our store in Google</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 M18 Foods</p>
+            <p>Unit 6, St James Centre East Rd, Temple Fields</p>
+            <p>Harlow CM20 2SX, United Kingdom</p>
+            <p>Call us at 01279416661 or Email us at m18worldfoods@gmail.com</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and jQuery (needed for Bootstrap) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+</body>
+
+</html>

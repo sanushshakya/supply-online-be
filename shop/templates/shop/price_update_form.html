@@ -1,0 +1,77 @@
+<div class="modal fade" id="priceUpdateModal" tabindex="-1" aria-labelledby="priceUpdateModalLabel" aria-hidden="true">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="priceUpdateModalLabel">Price Update</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Form for updating price update -->
+                <form id="priceUpdateForm" method="POST" action="{% url 'update_product_price_by_barcode' %}">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="priceUpdateBarcode" class="form-label">Product Barcode</label>
+                        <input type="text" class="form-control" id="priceUpdateProductBarcode"
+                            name="price_update_product_barcode">
+                    </div>
+
+                    <hr class="my-4">
+                    <!-- Spans to display product details -->
+                    <div class="mt-5 mb-3">
+                        <label for="priceUpdateName" class="form-label">Product Name:</label>
+                        <span id="priceUpdateNameSpan"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="priceUpdatePrice" class="form-label">Product Price:</label>
+                        <span id="priceUpdatePriceSpan"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="priceUpdatePrice" class="form-label">Net Contents:</label>
+                        <span id="priceUpdateNetContentSpan"></span>
+                    </div>
+
+                    <!-- Add Product Button (Initially hidden) -->
+                    <div class="d-flex mb-3">
+                        <button type="button" class="btn btn-danger me-3" id="cancelBarcodeBtn"
+                            style="display:none;">Cancel
+                            Barcode</button>
+                    </div>
+
+
+                    <div class="mb-3 me-1">
+                        <label for="price_update_base_price" class="form-label">Base Price</label>
+                        <input type="number" class="form-control" id="priceUpdateBasePrice"
+                            name="price_update_base_price" step="0.01" min="0" />
+                    </div>
+
+                    <div class="mb-3 me-1">
+                        <label for="price_update_profit_margin" class="form-label">Profit Margin</label>
+                        <input type="number" class="form-control" id="priceUpdateProfitMargin"
+                            name="price_update_profit_margin" step="0.01" min="0" />
+                    </div>
+
+
+                    <button type="button" class="btn btn-primary btn-block mb-2"
+                        id="priceUpdateCalculateNewPricebtn">Get
+                        New Price</button>
+                    <button type="button" class="btn btn-info mb-2" style="color: white;"
+                        id="priceUpdateCalculateProfitMarginbtn">Get
+                        PM</button>
+
+                    <div class="mb-3">
+                        <label for="price_update_new_price" class="form-label">New Price</label>
+                        <input type="number" class="form-control" id="priceUpdateNewPrice"
+                            name="price_update_new_price" step="0.01" required min="0" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="priceUpdateProductsBtn">Update Price</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>

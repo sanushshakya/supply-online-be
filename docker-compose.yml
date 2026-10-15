@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=m18_world_foods_backend.settings
+    # Add other configurations as needed
+
+  nginx:
+    build:
+      context: ./nginx_server
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - django
+

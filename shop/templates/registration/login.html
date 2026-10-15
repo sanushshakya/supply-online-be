@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block navbar %}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h3 class="text-center mb-3">M18 Foods Control Panel</h3>
+          <p class="text-center text-muted">Login to continue</p>
+
+          <!-- ================= Normal Login ================= -->
+          <form method="post" class="mb-4">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" name="username" class="form-control" required />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" name="password" class="form-control" required />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+          </form>
+
+          <hr />
+
+          <!-- ================= QR LOGIN ================= -->
+          <div class="text-center">
+            <button
+              class="btn btn-outline-dark w-100"
+              data-bs-toggle="modal"
+              data-bs-target="#qrLoginModal"
+            >
+              🔐 Login with QR Code
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= QR MODAL ================= -->
+<div class="modal fade" id="qrLoginModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scan QR Code</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Controls row (new) -->
+        <div class="d-flex gap-2 align-items-center mb-3">
+          <button id="btn-switch-camera" type="button" class="btn btn-sm btn-secondary" disabled>
+            🔄 Switch Camera
+          </button>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <label for="camera-select" class="form-label mb-0">Camera</label>
+            <select id="camera-select" class="form-select form-select-sm" style="max-width: 260px" disabled></select>
+          </div>
+        </div>
+
+        <!-- Reader target -->
+        <div id="qr-reader" style="width: 100%"></div>
+
+        <p class="mt-3 text-muted text-center">Point your camera at your staff QR code</p>
+
+        <div id="qr-error" class="text-danger mt-2 d-none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= QR SCRIPT ================= -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+  let qrScanner = null;
+  let cameras = [];           // All camera devices from the browser
+  let currentCameraId = null; // The deviceId currently in use
+  const modal = document.getElementById("qrLoginModal");
+  const switchBtn = document.getElementById("btn-switch-camera");
+  const cameraSelect = document.getElementById("camera-select");
+
+  // Utility: find a deviceId by facing (front/back) if possible
+  function pickByFacing(devices, facing) {
+    // Try to infer front/back from 'label' (works after permission granted).
+    // 'front' variants: 'front', 'selfie', 'user'; 'back' variants: 'back', 'rear', 'environment'
+    const needles = facing === "front"
+      ? ["front", "user", "selfie"]
+      : ["back", "rear", "environment", "world"];
+
+    const found = devices.find(d =>
+      d.label && needles.some(n => d.label.toLowerCase().includes(n))
+    );
+    return found ? found.id : null;
+  }
+
+  // Utility: start scanning on a given deviceId
+  async function startScanner(deviceId) {
+    // Stop any existing instance (defensive)
+    if (qrScanner) {
+      try {
+        await qrScanner.stop();
+        await qrScanner.clear();
+      } catch (_) {}
+      qrScanner = null;
+    }
+
+    qrScanner = new Html5Qrcode("qr-reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    try {
+      await qrScanner.start({ deviceId: { exact: deviceId } }, config, onScanSuccess);
+      currentCameraId = deviceId;
+    } catch (err) {
+      console.error("Error starting scanner on device:", deviceId, err);
+      showError("Unable to start the selected camera. Try another camera or check permissions.");
+      // Attempt fallback to first available camera if current fails
+      if (cameras.length > 0 && cameras[0].id !== deviceId) {
+        startScanner(cameras[0].id);
+      }
+    }
+  }
+
+  // Utility: populate the camera dropdown and enable controls
+  function hydrateCameraControls() {
+    cameraSelect.innerHTML = "";
+    cameras.forEach((cam) => {
+      const opt = document.createElement("option");
+      opt.value = cam.id;
+      opt.textContent = cam.label || `Camera (${cam.id.slice(0, 6)}…)`;
+      if (cam.id === currentCameraId) opt.selected = true;
+      cameraSelect.appendChild(opt);
+    });
+
+    // Enable controls if there is at least one camera
+    cameraSelect.disabled = cameras.length === 0;
+    // Enable "Switch Camera" only if there are at least two
+    switchBtn.disabled = cameras.length < 2;
+  }
+
+  // On modal open: enumerate cameras and start with back if possible
+  modal.addEventListener("shown.bs.modal", async function () {
+    if (qrScanner) {
+      // Prevent multiple instances
+      return;
+    }
+
+    try {
+      // IMPORTANT: getCameras requires HTTPS or localhost
+      cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        showError("No camera found. Connect a camera or check permissions.");
+        return;
+      }
+
+      // Choose preferred camera: back/environment if available, else the first one
+      const preferredBack = pickByFacing(cameras, "back");
+      const deviceToUse = preferredBack || cameras[0].id;
+
+      await startScanner(deviceToUse);
+      hydrateCameraControls();
+    } catch (err) {
+      console.error("Error retrieving cameras / starting scanner:", err);
+      showError("Camera access denied or not available. Please allow camera permissions.");
+    }
+  });
+
+  // On modal close: stop and clear scanner
+  modal.addEventListener("hidden.bs.modal", function () {
+    if (qrScanner) {
+      qrScanner.stop()
+        .then(() => {
+          qrScanner.clear();
+          qrScanner = null;
+        })
+        .catch((err) => {
+          console.error("Failed to stop scanner", err);
+        });
+    }
+  });
+
+  // Dropdown change: switch to selected camera
+  cameraSelect.addEventListener("change", async (e) => {
+    const targetId = e.target.value;
+    if (!targetId || targetId === currentCameraId) return;
+    await startScanner(targetId);
+    hydrateCameraControls();
+  });
+
+  // Switch button: toggle front/back
+  switchBtn.addEventListener("click", async () => {
+    if (cameras.length < 2) return;
+
+    // Determine what we’re currently on and try the opposite
+    const frontId = pickByFacing(cameras, "front");
+    const backId = pickByFacing(cameras, "back");
+
+    // If both present, toggle; otherwise cycle to the "next" device
+    let nextId = null;
+    if (frontId && backId) {
+      nextId = (currentCameraId === backId) ? frontId : backId;
+    } else {
+      // Fallback: rotate to the next device in the list
+      const idx = cameras.findIndex(c => c.id === currentCameraId);
+      nextId = cameras[(idx + 1) % cameras.length].id;
+    }
+
+    if (nextId && nextId !== currentCameraId) {
+      await startScanner(nextId);
+      hydrateCameraControls();
+    }
+  });
+
+  function onScanSuccess(decodedText) {
+    // Stop scanning immediately after success
+    if (qrScanner) {
+      qrScanner.stop().then(() => {
+        qrScanner.clear();
+        qrScanner = null;
+        // Close modal visual
+        const modalInstance = bootstrap.Modal.getInstance(modal);
+        if (modalInstance) modalInstance.hide();
+      });
+    }
+
+    // Send to backend
+    fetch("{% url 'qr_login' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: JSON.stringify({ qr_token: decodedText }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          window.location.href = "{% url 'dashboard' %}";
+        } else {
+          alert(data.error || "QR login failed");
+          window.location.reload();
+        }
+      })
+      .catch(() => {
+        alert("Unable to process login");
+        window.location.reload();
+      });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("qr-error");
+    el.innerText = msg;
+    el.classList.remove("d-none");
+  }
+</script>
+
+{% endblock %}

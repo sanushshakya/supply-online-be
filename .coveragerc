@@ -1,0 +1,8 @@
+[run]
+omit =
+    */migrations/*
+    */venv/*
+    */site-packages/*
+    manage.py
+    myproject/wsgi.py
+    myproject/asgi.py

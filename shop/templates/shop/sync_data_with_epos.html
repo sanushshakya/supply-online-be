@@ -1,0 +1,265 @@
+<div
+  class="modal fade"
+  id="syncDataWithEposModal"
+  tabindex="-1"
+  aria-labelledby="syncDataWithEposModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="syncDataWithEposModalLabel">
+          Sync Data with EPOS
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Upload Form -->
+        <form id="syncDataWithEposForm" enctype="multipart/form-data">
+          {% csrf_token %}
+          <p>
+            Upload the EPOS CSV file to preview product price updates (website
+            profit included). Review carefully before syncing.
+          </p>
+
+          <div class="mb-3">
+            <label for="epos_sync_file" class="form-label">
+              EPOS CSV File
+            </label>
+            <input
+              type="file"
+              class="form-control"
+              id="epos_sync_file"
+              name="epos_sync_file"
+              accept=".csv"
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="previewBtn">
+            Preview Changes
+          </button>
+        </form>
+
+        <!-- Progress -->
+        <div id="eposDataSyncProgress" class="mt-4 d-none">
+          <div class="progress" style="height: 25px">
+            <div
+              id="eposProgressBar"
+              class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+              role="progressbar"
+              style="width: 0%"
+            >
+              0%
+            </div>
+          </div>
+          <div id="progressText" class="mt-2"></div>
+        </div>
+
+        <div id="eposNoUpdatesMessage" class="alert alert-info mt-4 d-none">
+          ✅ All product prices are already up to date. No changes required.
+        </div>
+
+        <div id="eposDataPreview" class="mt-4 d-none">
+          <h5>Preview of Products to be Updated</h5>
+
+          <div
+            class="table-responsive"
+            style="max-height: 450px; overflow-y: auto"
+          >
+            <table class="table table-bordered table-striped">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Product</th>
+                  <th>Barcode</th>
+                  <th>Current Price</th>
+                  <th>EPOS Price</th>
+                  <th>New Price</th>
+                  <th>Difference</th>
+                </tr>
+              </thead>
+              <tbody id="eposPreviewBody"></tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button id="confirmSyncBtn" class="btn btn-success" disabled>
+              Confirm Sync
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const modalEl = document.getElementById("syncDataWithEposModal");
+    const form = document.getElementById("syncDataWithEposForm");
+    const previewBtn = document.getElementById("previewBtn");
+    const confirmBtn = document.getElementById("confirmSyncBtn");
+
+    const progress = document.getElementById("eposDataSyncProgress");
+    const progressBar = document.getElementById("eposProgressBar");
+    const progressText = document.getElementById("progressText");
+
+    const previewDiv = document.getElementById("eposDataPreview");
+    const previewBody = document.getElementById("eposPreviewBody");
+    const noUpdatesMsg = document.getElementById("eposNoUpdatesMessage");
+
+    const endpoint = "{% url 'sync_data_with_epos' %}";
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      previewBtn.disabled = true;
+      previewBtn.textContent = "Syncing...";
+      confirmBtn.disabled = true;
+
+      previewDiv.classList.add("d-none");
+      noUpdatesMsg.classList.add("d-none");
+      previewBody.innerHTML = "";
+
+      progress.classList.remove("d-none");
+      progressBar.style.width = "0%";
+      progressBar.textContent = "0%";
+      progressText.textContent = "";
+
+      const fileInput = document.getElementById("epos_sync_file");
+      if (!fileInput.files.length) {
+        resetPreviewButton();
+        progress.classList.add("d-none");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("epos_sync_file", fileInput.files[0]);
+      formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+      try {
+        const response = await fetch(`${endpoint}?preview=1`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        const total = data.data.length;
+
+        if (total === 0) {
+          progress.classList.add("d-none");
+          noUpdatesMsg.classList.remove("d-none");
+          resetPreviewButton();
+          return;
+        }
+
+        previewDiv.classList.remove("d-none");
+
+        const batchSize = 100;
+        for (let i = 0; i < total; i += batchSize) {
+          const batch = data.data.slice(i, i + batchSize);
+
+          batch.forEach((item) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.barcode}</td>
+            <td>${item.current_price.toFixed(2)}</td>
+            <td>${item.epos_price.toFixed(2)}</td>
+            <td>${item.new_price.toFixed(2)}</td>
+            <td>${item.difference.toFixed(2)}</td>
+          `;
+            previewBody.appendChild(row);
+          });
+
+          const percent = Math.round(((i + batch.length) / total) * 100);
+          progressBar.style.width = percent + "%";
+          progressBar.textContent = percent + "%";
+          progressText.textContent = `Previewing ${i + 1}–${Math.min(
+            i + batch.length,
+            total
+          )} of ${total}`;
+
+          await new Promise((r) => setTimeout(r, 15));
+        }
+
+        progress.classList.add("d-none");
+        resetPreviewButton();
+        confirmBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        alert("Error previewing EPOS data.");
+        progress.classList.add("d-none");
+        resetPreviewButton();
+      }
+    });
+
+    confirmBtn.addEventListener("click", async function () {
+      confirmBtn.disabled = true;
+      previewBtn.disabled = true;
+
+      progress.classList.remove("d-none");
+      progressText.textContent = "Syncing products...";
+
+      const fileInput = document.getElementById("epos_sync_file");
+      const formData = new FormData();
+      formData.append("epos_sync_file", fileInput.files[0]);
+      formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.redirected) {
+          window.location.href = response.url;
+        } else {
+          location.reload();
+        }
+      } catch (err) {
+        alert("Error syncing EPOS data.");
+        progress.classList.add("d-none");
+        resetPreviewButton();
+        confirmBtn.disabled = true;
+      }
+    });
+
+    modalEl.addEventListener("hidden.bs.modal", function () {
+      form.reset();
+      previewBody.innerHTML = "";
+
+      previewDiv.classList.add("d-none");
+      noUpdatesMsg.classList.add("d-none");
+      progress.classList.add("d-none");
+
+      progressBar.style.width = "0%";
+      progressBar.textContent = "0%";
+      progressText.textContent = "";
+
+      resetPreviewButton();
+      confirmBtn.disabled = true;
+    });
+
+    function resetPreviewButton() {
+      previewBtn.disabled = false;
+      previewBtn.textContent = "Preview Changes";
+    }
+  });
+</script>

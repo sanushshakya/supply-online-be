@@ -1,0 +1,24 @@
+FROM python:3.11-bullseye
+
+WORKDIR /app
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app code
+COPY . .
+
+# Run collectstatic
+RUN python manage.py collectstatic --noinput
+
+# Run migration
+RUN python manage.py makemigrations
+
+# Run collectstatic
+RUN python manage.py migrate
+
+EXPOSE 8000
+
+# Default command — overridden by celery services
+CMD ["uvicorn", "m18_world_foods_backend.asgi:application", "--host", "0.0.0.0", "--port", "8000"]

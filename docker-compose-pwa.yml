@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+
+  django-pwa:
+    build:
+      context: .
+      dockerfile: Dockerfile.pwa
+    ports:
+      - "8001:8000"
+    environment:
+      ENV: prod
+    env_file:
+      - .env.pwa
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - pwa-network
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.pwa
+    command: celery -A m18_world_foods_backend worker --loglevel=info
+    env_file:
+      - .env.pwa
+    restart: always
+    depends_on:
+      - django-pwa
+      - redis
+    networks:
+      - pwa-network
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.pwa
+    command: celery -A m18_world_foods_backend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.pwa
+    restart: always
+    depends_on:
+      - django-pwa
+      - redis
+    networks:
+      - pwa-network
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - pwa-network
+
+networks:
+  pwa-network:
+    driver: bridge

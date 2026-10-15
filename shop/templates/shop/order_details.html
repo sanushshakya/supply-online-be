@@ -1,0 +1,492 @@
+{% extends 'base.html' %} {% block content %}
+<style>
+  @media print {
+    .product-image {
+      display: none !important;
+    }
+    /* Hide interactive elements */
+    #overrideButton,
+    #printOrderButton,
+    #lockButtonContainer,
+    #assignPickerButton,
+    form button,
+    input,
+    .modal {
+      display: none !important;
+    }
+
+    /* Hide navbar */
+    nav,
+    .navbar,
+    #navbar,
+    footer {
+      display: none !important;
+    }
+
+    /* Hide only Action and Scanned Count columns */
+    .col-action,
+    .col-scanned {
+      display: none !important;
+    }
+  }
+</style>
+<!-- Override Modal -->
+<div
+  class="modal fade"
+  id="overrideModal"
+  tabindex="-1"
+  aria-labelledby="overrideModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="overrideLoginForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="overrideModalLabel">
+            Superadmin Override
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="superadminUsername" class="form-label">Username</label>
+            <input
+              type="text"
+              class="form-control"
+              id="superadminUsername"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="superadminPassword" class="form-label">Password</label>
+            <input
+              type="password"
+              class="form-control"
+              id="superadminPassword"
+              required
+            />
+          </div>
+          <div id="overrideError" class="text-danger" style="display: none">
+            Invalid credentials
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Authenticate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Collector Modal -->
+<div
+  class="modal fade"
+  id="assignPickerModal"
+  tabindex="-1"
+  aria-labelledby="assignPickerModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="assignCollectorForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="assignPickerModalLabel">
+            Assign Staff to Order
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="staffSelect" class="form-label">Select Staff</label>
+            <select
+              class="form-select"
+              id="staffSelect"
+              name="assigned_staff"
+              required
+            >
+              <option value="">-- Choose a Staff Member --</option>
+              {% for staff_user in staff_users %}
+              <option value="{{staff_user}}">{{staff_user}}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="assignStaffBtn">
+            Assign
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="container mt-4">
+  <h1>Order Details</h1>
+  <br />
+  <p><strong>LoggedIn Staff:</strong> {{user.username}}</p>
+  <p id="assignedPickerDisplay" style="display: none">
+    <strong>Assigned Picker:</strong> <span id="assignedPickerName"></span>
+  </p>
+  <p><strong>Order Id:</strong> {{ order.order_id }}</p>
+  <p><strong>Payment:</strong> {{order.stripe_payment_status}}</p>
+  <p><strong>Delivery Address:</strong> {{ order.delivery_address }}</p>
+  <p><strong>Customer Email:</strong> {{ order.customer_email }}</p>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="mb-0">
+      <strong>Customer Mobile:</strong> {{ order.customer_mobile_number }}
+    </p>
+    <div>
+      <button
+        class="btn btn-outline-danger me-2"
+        type="button"
+        id="overrideButton"
+        data-bs-toggle="modal"
+        data-bs-target="#overrideModal"
+      >
+        Override
+      </button>
+
+      <button
+        class="btn btn-outline-success me-2"
+        type="button"
+        id="printOrderButton"
+      >
+        Print
+      </button>
+      <button
+        class="btn btn-outline-success"
+        type="button"
+        data-bs-toggle="modal"
+        data-bs-target="#assignPickerModal"
+        id="assignPickerButton"
+      >
+        Assign
+      </button>
+    </div>
+  </div>
+
+  <!-- Bootstrap Table -->
+  <form
+    method="post"
+    id="completeForm"
+    action="{% url 'complete_order' order_id=order.order_id %}"
+  >
+    {% csrf_token %}
+    <input type="hidden" name="order_id" value="{{ order.order_id }}" />
+    <table class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Product Name</th>
+          <th>Bar Code</th>
+          <th>Quantity</th>
+          <th>Discount Category</th>
+          <th>Discount Amount</th>
+          <th>Unit Price</th>
+          <th>Subtotal</th>
+          <th>Location In Store</th>
+          <th class="col-action">Action</th>
+          <th class="col-scanned">Scanned Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order_item in order.order_items_from_order %}
+
+        <tr>
+          <td>
+            {% if order_item.product_image_url %}
+            <img
+              src="{{ order_item.product_image_url }}"
+              alt="{{ order_item.product.name }}"
+              class="img-thumbnail"
+              style="width: 60px; height: 60px; object-fit: contain"
+              loading="lazy"
+            />
+            {% else %}
+            <span class="text-muted">No image</span>
+            {% endif %}
+          </td>
+          <td>{{ order_item.product.name }}</td>
+          <td>{{ order_item.product.barcode }}</td>
+          <td>{{ order_item.quantity }}</td>
+          <td>{{ order_item.discount_category }}</td>
+          <td>{{ order_item.discount_amount }}</td>
+          <td>{{ order_item.order_item_unit_price }}</td>
+          <td>{{ order_item.order_item_subtotal }}</td>
+          <td>{{ order_item.product.location_in_store.name }}</td>
+
+          <td class="col-action">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="order_items"
+                value="{{ order_item.id }}"
+                id="orderItemCheckbox{{ forloop.counter }}"
+                data-quantity="{{ order_item.quantity }}"
+                data-scan-count="0"
+                disabled
+              />
+              <label
+                class="form-check-label"
+                for="orderItemCheckbox{{ forloop.counter }}"
+              />
+            </div>
+          </td>
+          <td class="scanned-count col-scanned">0</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="5"></td>
+          <td>Delivery fee:</td>
+          <td colspan="4">{{ order.delivery_fee }}</td>
+        </tr>
+        <tr>
+          <td colspan="5"></td>
+          <td>Total discount:</td>
+          <td colspan="4">{{ order.total_discount }}</td>
+        </tr>
+        <tr>
+          <td colspan="5"></td>
+          <td>Voucher:</td>
+          <td colspan="4">{{ order.voucher_amount }}</td>
+        </tr>
+        <tr>
+          <td colspan="5"></td>
+          <td>Total:</td>
+          <td colspan="4">{{ order.total_amount }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="d-flex justify-content-center">
+      <td>
+        <button
+          class="btn btn-outline-success my-2 my-sm-0"
+          type="submit"
+          id="completeButton"
+          style="display: none"
+        >
+          Complete
+        </button>
+      </td>
+    </div>
+  </form>
+
+  <div id="lockButtonContainer" class="text-end mb-3" style="display: none">
+    <button type="button" class="btn btn-warning" id="lockCheckboxesBtn">
+      Lock Checkboxes
+    </button>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var checkboxes = document.querySelectorAll(".form-check-input");
+    var completeButton = document.getElementById("completeButton");
+    var completeForm = document.getElementById("completeForm");
+
+    function updateCompleteButtonVisibility() {
+      var allChecked =
+        document.querySelectorAll(".form-check-input:checked").length ===
+        checkboxes.length;
+      completeButton.style.display = allChecked ? "block" : "none";
+    }
+
+    checkboxes.forEach(function (checkbox) {
+      checkbox.addEventListener("change", function () {
+        var row = this.closest("tr");
+        if (this.checked) {
+          row.style.textDecoration = "line-through";
+          row.style.textDecorationThickness = "2px";
+          row.style.color = "red";
+        } else {
+          row.style.textDecoration = "none";
+          row.style.textDecorationThickness = "initial";
+          row.style.color = "";
+        }
+        updateCompleteButtonVisibility();
+      });
+    });
+
+    completeButton.addEventListener("click", function () {
+      completeForm.submit();
+    });
+
+    function simulateCheckboxClick(checkbox) {
+      var event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      });
+      checkbox.dispatchEvent(event);
+    }
+
+    function matchBarcode(barcode) {
+      let matchFound = false;
+
+      checkboxes.forEach(function (checkbox) {
+        const row = checkbox.closest("tr");
+        const barcodeCell = row.cells[2]; // Assuming barcode is in the second column
+
+        if (barcodeCell.textContent.trim() === barcode) {
+          matchFound = true;
+
+          const quantity = parseInt(checkbox.getAttribute("data-quantity"), 10);
+          let scanCount = parseInt(
+            checkbox.getAttribute("data-scan-count"),
+            10,
+          );
+
+          if (scanCount >= quantity) {
+            alert(
+              "You have already scanned the desired quantity of the products",
+            );
+          } else {
+            scanCount += 1;
+            checkbox.setAttribute("data-scan-count", scanCount);
+
+            // Update the scanned count display
+            const scannedCountCell = row.querySelector(".scanned-count");
+            scannedCountCell.textContent = scanCount;
+
+            if (scanCount >= quantity) {
+              simulateCheckboxClick(checkbox); // Simulate a click on the checkbox
+            }
+          }
+        }
+      });
+
+      if (!matchFound) {
+        alert("Wrong barcode. Please check if the product is correct.");
+      }
+    }
+
+    var barcode_from_scanner = ""; // Variable to store scanned barcode
+
+    window.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") {
+        barcode_from_scanner += event.key; // Append the scanned character to the barcode
+      } else {
+        console.log(barcode_from_scanner);
+        matchBarcode(barcode_from_scanner); // Match the scanned barcode with the table
+        barcode_from_scanner = ""; // Reset the barcode after processing
+      }
+    });
+
+    const overrideLoginForm = document.getElementById("overrideLoginForm");
+    const overrideError = document.getElementById("overrideError");
+    const actionInputs = document.querySelectorAll(".form-check-input");
+
+    let overrideUnlocked = false;
+
+    overrideLoginForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const username = document.getElementById("superadminUsername").value;
+      const password = document.getElementById("superadminPassword").value;
+
+      fetch("{% url 'superadmin_auth' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify({ username, password }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Auth failed");
+          return response.json();
+        })
+        .then((data) => {
+          if (data.success) {
+            overrideUnlocked = true;
+            overrideError.style.display = "none";
+
+            checkboxes.forEach((cb) => (cb.disabled = false));
+
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("overrideModal"),
+            );
+            modal.hide();
+            overrideLoginForm.reset();
+
+            document.getElementById("lockButtonContainer").style.display =
+              "block";
+            document.getElementById("overrideButton").style.display = "none";
+          } else {
+            overrideError.style.display = "block";
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          overrideError.style.display = "block";
+        });
+    });
+
+    // Lock button handler
+    document
+      .getElementById("lockCheckboxesBtn")
+      .addEventListener("click", function () {
+        overrideUnlocked = false;
+
+        // Disable checkboxes again
+        checkboxes.forEach((cb) => (cb.disabled = true));
+
+        // Toggle buttons
+        document.getElementById("lockButtonContainer").style.display = "none";
+        document.getElementById("overrideButton").style.display =
+          "inline-block"; // or 'block'
+      });
+
+    document
+      .getElementById("printOrderButton")
+      .addEventListener("click", function () {
+        window.print();
+      });
+
+    // Load from localStorage on page load
+    const storedPicker = localStorage.getItem("assignedPicker");
+    if (storedPicker) {
+      document.getElementById("assignedPickerDisplay").style.display = "block";
+      document.getElementById("assignedPickerName").textContent = storedPicker;
+    }
+
+    // Handle assignment button click
+    document
+      .getElementById("assignStaffBtn")
+      .addEventListener("click", function (e) {
+        e.preventDefault();
+
+        const selectedStaff = document.getElementById("staffSelect").value;
+
+        // Save to localStorage
+        localStorage.setItem("assignedPicker", selectedStaff);
+
+        // Update the UI
+        document.getElementById("assignedPickerDisplay").style.display =
+          "block";
+        document.getElementById("assignedPickerName").textContent =
+          selectedStaff;
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(
+          document.getElementById("assignPickerModal"),
+        );
+        modal.hide();
+      });
+  });
+</script>
+{% endblock %}

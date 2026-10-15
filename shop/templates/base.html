@@ -1,0 +1,71 @@
+<!-- templates/base.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M18 Foods Order Management System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous" />
+  {% load static %}
+  <link href="{% static 'shop/css/styles.css' %}" rel="stylesheet">
+  <style>
+    body {
+      padding-bottom: 60px;
+      /* Adjust this value according to your footer height */
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Common header, navigation, or other elements go here -->
+  <!-- Include Navbar -->
+  {% block navbar %}
+  <!-- Include navbar.html -->
+  {% include 'navbar.html' %}
+  {% endblock %}
+  {% load custom_filters %}
+  <!-- Display Bootstrap-style alert messages -->
+  <div id="alert-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1000;">
+    {% if messages %}
+    {% for message in messages %}
+    <div id="alert-message" class="alert alert-{{ message.tags|override_tag }} alert-dismissible fade show"
+      role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  {% block content %}
+
+  {% endblock %}
+
+  <!-- Common footer or scripts go here -->
+  <!-- Bootstrap JS (you can use a local copy instead of CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+    crossorigin="anonymous"></script>
+
+  <!-- JavaScript to auto-hide the alert messages after 2 seconds -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(function () {
+        var alertContainer = document.getElementById('alert-container')
+        alertContainer.innerHTML = '' // Clear the alert container after 2 seconds
+      }, 2000)
+    })
+  </script>
+</body>
+<!-- Footer -->
+<div class="mt-5">
+  <footer class="footer bg-dark text-white fixed-bottom">
+    <div class="container py-3 text-center">
+      Created by Paper2Product
+    </div>
+  </footer>
+</div>
+
+</html>

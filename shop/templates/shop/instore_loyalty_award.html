@@ -1,0 +1,785 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+
+<div class="container mt-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="mb-1">M18 Rewards</h1>
+      <p class="text-muted mb-0">
+        Re loyalty points to a customer for an in-store purchase
+      </p>
+    </div>
+    {% comment %}
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+      &larr; Back to Dashboard
+    </a>
+    {% endcomment %}
+  </div>
+
+  <!-- Alerts -->
+  {% if error %}
+  <div
+    class="alert alert-danger alert-dismissible fade show d-flex align-items-center"
+    role="alert"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      fill="currentColor"
+      class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"
+      viewBox="0 0 16 16"
+    >
+      <path
+        d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889
+        0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35
+        3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+      />
+    </svg>
+    <div>{{ error }}</div>
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+    ></button>
+  </div>
+  {% endif %} {% if success %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex align-items-center mb-3">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        fill="currentColor"
+        class="bi bi-check-circle-fill me-2 flex-shrink-0"
+        viewBox="0 0 16 16"
+      >
+        <path
+          d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477
+          9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75
+          0 0 0-.01-1.05z"
+        />
+      </svg>
+      <strong>Points awarded successfully!</strong>
+    </div>
+
+    <!-- Receipt Table -->
+    <table
+      class="table table-sm table-bordered mb-2"
+      style="background: white; max-width: 500px"
+    >
+      <tbody>
+        <tr>
+          <th class="table-light" style="width: 40%">Customer</th>
+          <td><strong>{{ success.customer }}</strong></td>
+        </tr>
+        <tr>
+          <th class="table-light">Purchase Amount</th>
+          <td>£{{ success.amount }}</td>
+        </tr>
+        <tr>
+          <th class="table-light">Points Awarded</th>
+          <td>
+            <span class="badge bg-success fs-6"
+              >+{{ success.points_awarded }} pts</span
+            >
+          </td>
+        </tr>
+        <tr>
+          <th class="table-light">New Balance</th>
+          <td><strong>{{ success.new_balance }} pts</strong></td>
+        </tr>
+        {% if success.order_reference %}
+        <tr>
+          <th class="table-light">Order Reference</th>
+          <td>{{ success.order_reference }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <th class="table-light">Transaction ID</th>
+          <td>
+            <small class="text-muted font-monospace"
+              >{{ success.transaction_id }}</small
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+    ></button>
+  </div>
+  {% endif %}
+
+  <!-- Main Content -->
+  <div class="row">
+    <!-- ── Form Card ── -->
+    <div class="col-lg-7 col-xl-6">
+      <div class="card shadow-sm">
+        <div
+          class="card-header d-flex align-items-center"
+          style="background-color: #f8f9fa"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            fill="currentColor"
+            class="bi bi-upc-scan me-2 text-primary"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0
+              1h-3zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0
+              0-.5-.5h-3a.5.5 0 0 1-.5-.5zM.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0
+              1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5
+              1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5zM3 4.5a.5.5 0 0 1
+              1 0v7a.5.5 0 0 1-1 0v-7zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0v-7zm2 0a.5.5 0 0 1
+              1 0v7a.5.5 0 0 1-1 0v-7zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0
+              1-.5-.5zm0 5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zM12 4.5a.5.5 0 0 1
+              1 0v7a.5.5 0 0 1-1 0v-7z"
+            />
+          </svg>
+          <strong>Award Points Form</strong>
+        </div>
+
+        <div class="card-body p-4">
+          <form
+            method="post"
+            novalidate
+            autocomplete="off"
+            id="loyaltyAwardForm"
+          >
+            {% csrf_token %}
+
+            <!-- Barcode -->
+            <div class="mb-3">
+              <label for="barcode_number" class="form-label fw-semibold">
+                Loyalty Card Barcode <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    class="bi bi-upc"
+                    viewBox="0 0 16 16"
+                  >
+                    <path
+                      d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0v-7zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0
+                      1-1 0v-7zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0v-7zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0
+                      1 0 1h-1a.5.5 0 0 1-.5-.5zm0 5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0
+                      1-.5-.5zM12 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0v-7z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  class="form-control form-control-lg"
+                  id="barcode_number"
+                  name="barcode_number"
+                  placeholder="Scan or type barcode…"
+                  value="{{ barcode_number|default:'' }}"
+                  autofocus
+                  inputmode="text"
+                />
+              </div>
+              <div class="form-text">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="13"
+                  height="13"
+                  fill="currentColor"
+                  class="bi bi-info-circle me-1"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"
+                  />
+                  <path
+                    d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738
+                    3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252
+                    1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275
+                    0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"
+                  />
+                </svg>
+                Click this field, then scan the loyalty card with a barcode
+                reader.
+              </div>
+            </div>
+
+            <!-- Purchase Amount — readonly, driven by numpad -->
+            <div class="mb-3">
+              <label for="order_amount" class="form-label fw-semibold">
+                Purchase Amount <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">£</span>
+                <input
+                  type="text"
+                  inputmode="none"
+                  class="form-control form-control-lg"
+                  id="order_amount"
+                  name="order_amount"
+                  placeholder="0.00"
+                  value="{{ order_amount|default:'' }}"
+                  readonly
+                  style="cursor: pointer; background: #fff"
+                />
+              </div>
+              <div class="form-text">
+                Tap this field to open the numpad, or use your keyboard.
+              </div>
+              <div class="invalid-feedback" id="amountFeedback">
+                Please enter a valid amount greater than £0.
+              </div>
+            </div>
+
+            <!-- Order Reference -->
+            <div class="mb-4">
+              <label for="order_reference" class="form-label fw-semibold">
+                Order Reference
+                <span class="text-muted fw-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="order_reference"
+                name="order_reference"
+                placeholder="e.g. TILL-00421"
+                value="{{ order_reference|default:'' }}"
+              />
+            </div>
+
+            <hr class="mb-4" />
+
+            <div class="d-flex gap-2">
+              <button
+                type="submit"
+                class="btn btn-success btn-lg px-4"
+                id="submitBtn"
+              >
+                Submit
+              </button>
+              <button
+                type="reset"
+                class="btn btn-outline-secondary btn-lg"
+                id="resetBtn"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right column: Numpad + Info Cards ── -->
+    <div class="col-lg-5 col-xl-6 mt-4 mt-lg-0">
+      <!-- Numpad Card -->
+      <div class="card shadow-sm mb-3" id="numpadCard">
+        <div
+          class="card-header d-flex align-items-center"
+          style="background-color: #f8f9fa"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            class="bi bi-calculator-fill me-2 text-primary"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2
+              .5v2a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5h-7a.5.5 0 0 0-.5.5zM4
+              6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1
+              1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3-6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1
+              1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1 1 0 0
+              0 0 2zm3-6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 2a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 4a2 2 0 1 0
+              0-4 2 2 0 0 0 0 4z"
+            />
+          </svg>
+          <strong>Amount Numpad</strong>
+          <span class="ms-2 small fw-normal text-muted" id="numpadStatus"
+            >— tap the amount field to activate</span
+          >
+        </div>
+        <div class="card-body p-3">
+          <!-- Display -->
+          <div
+            class="mb-3 p-3 rounded border text-end"
+            id="numpadDisplay"
+            style="
+              background: #f8f9fa;
+              font-size: 2rem;
+              font-family: monospace;
+              font-weight: 600;
+              min-height: 64px;
+              letter-spacing: 1px;
+              color: #212529;
+            "
+          >
+            <span
+              class="text-muted"
+              id="numpadPlaceholder"
+              style="font-size: 1rem; font-weight: 400"
+              >enter amount…</span
+            >
+          </div>
+
+          <!-- Grid -->
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 8px;
+            "
+          >
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="7"
+            >
+              7
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="8"
+            >
+              8
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="9"
+            >
+              9
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="4"
+            >
+              4
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="5"
+            >
+              5
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="6"
+            >
+              6
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="1"
+            >
+              1
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="2"
+            >
+              2
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="3"
+            >
+              3
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-dot"
+              data-val="."
+            >
+              .
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-numpad numpad-digit"
+              data-val="0"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger btn-numpad"
+              id="numpadBack"
+              title="Backspace"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                fill="currentColor"
+                class="bi bi-backspace-fill"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M15.683 3a2 2 0 0 0-2-2h-7.08a2 2 0 0 0-1.519.698L.241 7.35a1 1 0 0 0 0
+                  1.302l4.843 5.65A2 2 0 0 0 6.603 15h7.08a2 2 0 0 0 2-2V3zM5.829 5.854a.5.5 0 1 1
+                  .707-.708l2.147 2.147 2.146-2.147a.5.5 0 1 1 .707.708L9.39 8l2.146 2.146a.5.5 0 0
+                  1-.707.708L8.683 8.707l-2.147 2.147a.5.5 0 0 1-.707-.708L7.976 8 5.829 5.854z"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-numpad"
+              id="numpadClear"
+              style="grid-column: span 3"
+            >
+              Clear
+            </button>
+          </div>
+
+          <!-- Quick amounts -->
+          <div class="mt-3">
+            <div class="text-muted small mb-2">Quick amounts:</div>
+            <div class="d-flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="5.00"
+              >
+                £5
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="10.00"
+              >
+                £10
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="15.00"
+              >
+                £15
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="20.00"
+              >
+                £20
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="25.00"
+              >
+                £25
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm quick-amt"
+                data-amt="50.00"
+              >
+                £50
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- How it works -->
+      <div
+        class="card shadow-sm border-0 mb-3"
+        style="background-color: #f0f7ff"
+      >
+        <div class="card-body p-4">
+          <h6 class="fw-bold text-primary mb-3">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-lightbulb-fill me-2"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0
+                1 10.5 13h-5a.5.5 0 0 1-.46-.302l-.761-1.77a1.964 1.964 0 0 0-.453-.618A5.984 5.984 0 0 1 2
+                6zm3 8.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0
+                1-.894-.553L5.5 15a.5.5 0 0 1-.5-.5z"
+              />
+            </svg>
+            How it works
+          </h6>
+          <ol class="mb-0 ps-3" style="line-height: 2.2">
+            <li>Ask the customer for their loyalty card</li>
+            <li>Scan the barcode or type it manually</li>
+            <li>Tap the amount field and use the numpad above</li>
+            <li>Optionally add a till reference number</li>
+            <li>Click <strong>Submit</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Common errors -->
+      <div class="card shadow-sm border-0" style="background-color: #fff8e1">
+        <div class="card-body p-4">
+          <h6 class="fw-bold text-warning mb-3">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-exclamation-circle-fill me-2"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35
+                3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0
+                0-2z"
+              />
+            </svg>
+            Common errors
+          </h6>
+          <ul class="mb-0 ps-3 small text-secondary" style="line-height: 2.2">
+            <li>
+              <strong>Barcode not found</strong> — card may not be registered
+            </li>
+            <li>
+              <strong>Account inactive</strong> — customer account is suspended
+            </li>
+            <li>
+              <strong>Programme inactive</strong> — loyalty programme is paused
+            </li>
+            <li><strong>Invalid amount</strong> — must be greater than £0</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .btn-numpad {
+    padding: 14px 8px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition:
+      background-color 0.1s,
+      transform 0.08s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-numpad:active {
+    transform: scale(0.93);
+  }
+
+  #numpadCard {
+    transition: box-shadow 0.2s;
+  }
+  #numpadCard.numpad-active {
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
+  }
+  #numpadCard.numpad-active .card-header {
+    background-color: #e7f1ff !important;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const barcodeInput = document.getElementById("barcode_number");
+    const amountInput = document.getElementById("order_amount");
+    const orderRefInput = document.getElementById("order_reference");
+    const form = document.getElementById("loyaltyAwardForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const numpadCard = document.getElementById("numpadCard");
+    const numpadDisplay = document.getElementById("numpadDisplay");
+    const numpadStatus = document.getElementById("numpadStatus");
+    const originalBtnHTML = submitBtn.innerHTML;
+
+    let numpadActive = false;
+    let currentValue = "{{ order_amount|default:'' }}";
+
+    // ── Display helpers ──────────────────────────────────────────────
+    function updateDisplay() {
+      if (currentValue === "") {
+        numpadDisplay.innerHTML =
+          '<span class="text-muted" style="font-size:1rem;font-weight:400;">enter amount…</span>';
+      } else {
+        numpadDisplay.textContent = "£" + currentValue;
+      }
+      amountInput.value = currentValue;
+      amountInput.classList.remove("is-invalid");
+    }
+
+    function activateNumpad() {
+      numpadActive = true;
+      numpadCard.classList.add("numpad-active");
+      numpadStatus.textContent = "— active";
+      numpadStatus.style.color = "#0d6efd";
+    }
+
+    function deactivateNumpad() {
+      numpadActive = false;
+      numpadCard.classList.remove("numpad-active");
+      numpadStatus.textContent = "— tap the amount field to activate";
+      numpadStatus.style.color = "";
+    }
+
+    // Initialise display (repopulates value on validation error page reload)
+    updateDisplay();
+
+    // ── Activate on amount field tap / focus ─────────────────────────
+    amountInput.addEventListener("click", activateNumpad);
+    amountInput.addEventListener("focus", activateNumpad);
+
+    // Deactivate when other real inputs take focus
+    barcodeInput.addEventListener("focus", deactivateNumpad);
+    orderRefInput.addEventListener("focus", deactivateNumpad);
+
+    // ── Digit buttons ────────────────────────────────────────────────
+    document.querySelectorAll(".numpad-digit").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (!numpadActive) activateNumpad();
+        if (currentValue.length >= 8) return;
+        currentValue += this.dataset.val;
+        updateDisplay();
+      });
+    });
+
+    // ── Decimal point ────────────────────────────────────────────────
+    document
+      .querySelector(".numpad-dot")
+      .addEventListener("click", function () {
+        if (!numpadActive) activateNumpad();
+        if (currentValue.includes(".")) return;
+        if (currentValue === "") currentValue = "0";
+        currentValue += ".";
+        updateDisplay();
+      });
+
+    // ── Backspace ────────────────────────────────────────────────────
+    document
+      .getElementById("numpadBack")
+      .addEventListener("click", function () {
+        if (!numpadActive) activateNumpad();
+        currentValue = currentValue.slice(0, -1);
+        updateDisplay();
+      });
+
+    // ── Clear ────────────────────────────────────────────────────────
+    document
+      .getElementById("numpadClear")
+      .addEventListener("click", function () {
+        currentValue = "";
+        updateDisplay();
+      });
+
+    // ── Quick amounts ─────────────────────────────────────────────────
+    document.querySelectorAll(".quick-amt").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        currentValue = this.dataset.amt;
+        activateNumpad();
+        updateDisplay();
+      });
+    });
+
+    // ── Physical keyboard while numpad is active ──────────────────────
+    document.addEventListener("keydown", function (e) {
+      if (!numpadActive) return;
+      if (e.key >= "0" && e.key <= "9") {
+        if (currentValue.length < 8) currentValue += e.key;
+        updateDisplay();
+        e.preventDefault();
+      } else if (e.key === ".") {
+        if (!currentValue.includes(".")) {
+          if (currentValue === "") currentValue = "0";
+          currentValue += ".";
+        }
+        updateDisplay();
+        e.preventDefault();
+      } else if (e.key === "Backspace") {
+        currentValue = currentValue.slice(0, -1);
+        updateDisplay();
+        e.preventDefault();
+      } else if (e.key === "Escape") {
+        deactivateNumpad();
+      } else if (e.key === "Enter") {
+        deactivateNumpad();
+        orderRefInput.focus();
+      }
+    });
+
+    // ── Barcode Enter → jump to amount field ──────────────────────────
+    barcodeInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (this.value.trim()) {
+          amountInput.click();
+        }
+      }
+    });
+
+    // ── Form submit ───────────────────────────────────────────────────
+    form.addEventListener("submit", function (e) {
+      const parsed = parseFloat(currentValue);
+      if (!currentValue || isNaN(parsed) || parsed <= 0) {
+        e.preventDefault();
+        amountInput.classList.add("is-invalid");
+        activateNumpad();
+        return;
+      }
+      // Round to 2 dp before submitting
+      currentValue = parsed.toFixed(2);
+      amountInput.value = currentValue;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Awarding…
+      `;
+    });
+
+    // ── Reset ─────────────────────────────────────────────────────────
+    document.getElementById("resetBtn").addEventListener("click", function () {
+      currentValue = "";
+      updateDisplay();
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHTML;
+      amountInput.classList.remove("is-invalid");
+      deactivateNumpad();
+      setTimeout(() => barcodeInput.focus(), 50);
+    });
+
+    // ── Auto-dismiss alerts after 8 s ─────────────────────────────────
+    document.querySelectorAll(".alert").forEach(function (el) {
+      setTimeout(function () {
+        const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
+        if (bsAlert) bsAlert.close();
+      }, 8000);
+    });
+  });
+</script>
+
+{% endblock %}

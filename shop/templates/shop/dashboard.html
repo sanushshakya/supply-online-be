@@ -1,0 +1,60 @@
+<!-- dashboard.html -->
+{% extends 'base.html' %} {% block content %} {% load static %}
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-center">
+    <div class="card me-5" style="width: 18rem">
+      <img
+        src="{% static 'shop/images/order_management.png' %}"
+        class="card-img-top"
+        alt="..."
+        style="align-self: center; padding: 30px"
+      />
+      <hr class="my-0" />
+      <!-- Add a horizontal line below the image -->
+      <div class="card-body">
+        <h5 class="card-title">Order Management</h5>
+        <p class="card-text">Manage the store orders</p>
+        <a href="{% url 'order_management' %}" class="btn btn-primary"
+          >Order Management</a
+        >
+      </div>
+    </div>
+
+    <div class="card" style="width: 18rem">
+      <img
+        src="{% static 'shop/images/product_management.png' %}"
+        class="card-img-top"
+        alt="..."
+        style="align-self: center; padding: 30px"
+      />
+      <hr class="my-0" />
+      <!-- Add a horizontal line below the image -->
+      <div class="card-body">
+        <h5 class="card-title">Product Management</h5>
+        <p class="card-text">Manage the store products</p>
+        <a href="{% url 'product_management' %}" class="btn btn-primary"
+          >Product Management</a
+        >
+      </div>
+    </div>
+    <div class="card" style="width: 18rem">
+      <img
+        src="{% static 'shop/images/product_management.png' %}"
+        class="card-img-top"
+        alt="..."
+        style="align-self: center; padding: 30px"
+      />
+      <hr class="my-0" />
+      <!-- Add a horizontal line below the image -->
+      <div class="card-body">
+        <h5 class="card-title">Reward Management</h5>
+        <p class="card-text">Manage the user rewards</p>
+        <a href="{% url 'instore_loyalty_award' %}" class="btn btn-primary">
+          Reward Management
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

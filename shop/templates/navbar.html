@@ -1,0 +1,182 @@
+<!-- Bootstrap Navbar -->
+{% load static %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{% url 'dashboard' %}">M18 Foods Control Panel</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span
+        class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse justify-content-between" id="navbarSupportedContent">
+      <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="{% url 'dashboard' %}">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'order_management' %}">Orders</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'product_management' %}">Products</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link me-3" href="#">Tutorial</a>
+        </li>
+      </ul>
+
+      <!-- Notification Dropdown -->
+      <div class="nav-item dropdown me-3 mb-2 mb-lg-0">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown"
+          aria-haspopup="true" aria-expanded="false">
+          Notifications
+          <span class="badge bg-primary" id="notificationCount">{{ notifications.count }}</span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-start notification-dropdown" id="notificationDropdownMenu"
+          aria-labelledby="navbarDropdown"
+          style="max-width: 300px; word-wrap: break-word; overflow: hidden; left: auto; right: 0;">
+          {% for notification in notifications %}
+          <a class="dropdown-item" href="{% url 'notification_details' id=notification.id %}">{{ notification.message
+            }}</a>
+          {% endfor %}
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="{% url 'notifications' %}">View All Notifications</a>
+        </div>
+      </div>
+
+      <!-- Activate Alerts Button -->
+      <button id="activateAlertsBtn" class="btn btn-outline-warning me-3 mb-2 mb-lg-0">
+        🔔 Activate Sound
+      </button>
+
+
+      <!-- User Authentication -->
+      {% if user.is_authenticated %}
+      <div class="nav-item dropdown me-3 mb-2 mb-lg-0">
+        <form id="logoutForm" action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <a class="nav-link dropdown-toggle text-dark me-3" href="#" id="userDropdown" role="button"
+            data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-person-fill"></i>
+            {{ user.username }}</a>
+          <div class="dropdown-menu dropdown-menu-start" aria-labelledby="userDropdown"
+            style="max-width: 60px; word-wrap: break-word; overflow: hidden; left: auto; right: 0;">
+            <button class="dropdown-item" type="submit">Logout</button>
+          </div>
+        </form>
+      </div>
+      {% else %}
+      <a class="nav-link me-3" href="{% url 'login' %}">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- Audio for Notifications -->
+<audio id="notificationSound" src="{% static 'shop/sounds/notification.mp3' %}" preload="auto"></audio>
+<div id="customAlert" class="alert alert-warning alert-dismissible fade show d-none text-center" role="alert" style="
+       position: fixed;
+       left: 50%;
+       transform: translate(-50%, -50%);
+       z-index: 1055;
+       min-width: 300px;
+       max-width: 90%;
+       padding: 1.5rem;
+       font-size: 1.1rem;
+       cursor: pointer;">
+  📢 New notification received! Please check your dashboard.
+</div>
+<script>
+  const ALERT_INTERVAL_MINUTES = 0.1;
+
+  // Handle alert button click
+  document.getElementById("activateAlertsBtn").onclick = function () {
+    const sound = document.getElementById('notificationSound');
+    try {
+      sound.play().then(() => {
+        alert("✅ Alerts activated. You will now hear sounds for new notifications.");
+      }).catch((err) => {
+        console.warn("Audio playback failed:", err);
+        alert("⚠️ Failed to enable audio. Please check browser permissions.");
+      });
+    } catch (e) {
+      console.error("Error playing sound:", e);
+    }
+  };
+
+  // Navigate on alert click
+  document.getElementById("customAlert").onclick = function () {
+    const alertBox = document.getElementById("customAlert");
+    alertBox.classList.add("d-none");
+    setTimeout(() => {
+      window.location.href = "{% url 'notifications' %}";
+    }, 100);
+  };
+
+  // Check if alert should be shown based on last alert time
+  function shouldShowAlert() {
+    const lastAlertTime = localStorage.getItem("lastAlertTime");
+    if (!lastAlertTime) return true;
+    const elapsedMinutes = (Date.now() - parseInt(lastAlertTime, 10)) / 60000;
+    return elapsedMinutes >= ALERT_INTERVAL_MINUTES;
+  }
+
+  // Fetch notifications and update UI
+  function fetchAndUpdateNotifications() {
+    fetch("{% url 'fetch_notifications' %}", {
+      method: "GET",
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(response => response.json())
+      .then(data => {
+        const dropdownMenu = document.getElementById("notificationDropdownMenu");
+        dropdownMenu.innerHTML = '';
+
+        if (data.notifications.length === 0) {
+          dropdownMenu.innerHTML = '<div class="dropdown-item text-muted">No new notifications</div>';
+        } else {
+          const badge = document.getElementById("notificationCount");
+          if (badge) {
+            badge.textContent = data.notifications.length || "";
+          }
+
+          const sound = document.getElementById('notificationSound');
+          data.notifications.forEach(notification => {
+            const item = document.createElement('a');
+            item.className = 'dropdown-item';
+            item.href = window.location.origin + notification.url;
+            item.textContent = notification.message;
+            dropdownMenu.appendChild(item);
+          });
+
+          // Alert & Sound Logic
+          if (shouldShowAlert()) {
+            try {
+              sound.play();
+              const alertBox = document.getElementById("customAlert");
+              alertBox.classList.remove("d-none");
+
+              // Set last alert time
+              localStorage.setItem("lastAlertTime", Date.now().toString());
+
+              setTimeout(() => {
+                alertBox.classList.add("d-none");
+              }, 5000);
+            } catch (err) {
+              console.error("Failed to play sound:", err);
+            }
+          }
+        }
+
+        dropdownMenu.innerHTML += `
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'notifications' %}">View All Notifications</a>
+      `;
+      })
+      .catch(err => console.error("Polling error:", err));
+  }
+
+  // Start polling on DOM load
+  document.addEventListener("DOMContentLoaded", () => {
+    fetchAndUpdateNotifications();
+    setInterval(fetchAndUpdateNotifications, 10000); // every 10 seconds
+  });
+</script>

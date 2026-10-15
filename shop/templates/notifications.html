@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="container mt-4">
+    <h1>Notifications</h1>
+
+    <!-- Bootstrap Table -->
+    <div class="table-container">
+      <table class="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th>Notification ID</th>
+            <th>Message</th>
+            <th>Created At</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for notification in notifications %}
+            <tr>
+              <td>{{ notification.id }}</td>
+              <td>{{ notification.message }}</td>
+              <td>{{ notification.created_at }}</td>
+              <td>
+                {% if notification.is_read %}
+                  Read
+                {% else %}
+                  Unread
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'notification_details' id=notification.id %}" class="btn btn-primary">View</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Links -->
+    <div class="pagination">
+      <span class="step-links">
+        {% if notifications.has_previous %}
+          <a href="?page=1">&laquo; first</a>&nbsp;&nbsp;
+          <a href="?page={{ notifications.previous_page_number }}">previous</a>&nbsp;&nbsp;
+        {% endif %}
+
+        <span class="current">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}.</span>
+
+        {% if notifications.has_next %}
+          <a href="?page={{ notifications.next_page_number }}">next</a>&nbsp;&nbsp;
+          <a href="?page={{ notifications.paginator.num_pages }}">last &raquo;</a>&nbsp;&nbsp;
+        {% endif %}
+      </span>
+    </div>
+  </div>
+{% endblock %}

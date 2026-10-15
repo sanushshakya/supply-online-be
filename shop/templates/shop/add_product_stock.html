@@ -1,0 +1,51 @@
+<!-- Modal for adding a new category -->
+<div class="modal fade" id="addProductStockModal" tabindex="-1" aria-labelledby="addProductStockModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProductStockModalLabel">Add New Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Form for adding a new category -->
+        <form id="addProductStockForm" method="POST" action="{% url 'add_product_stock' %}"
+          enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div id="fetch_call_response_message_product_stock_add" style="display: none;"></div>
+
+          <div class="mb-3 row">
+            <label for="barcode" class="col-sm-2 col-form-label">Barcode</label>
+            <div class="col-sm-5">
+              <input type="text" class="form-control" id="barcodeProductStockAdd" name="barcode" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="name" class="form-label">Name:</label>
+            <span id="productNameSpanInAddStock"></span>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="stock" class="form-label">Current Stock:</label>
+            <span id="productStockSpanInAddStock"></span>
+          </div>
+
+          <div class="mb-3">
+            <label for="addProductStock" class="form-label">Quantity to Add:</label>
+            <input type="number" class="form-control" id="add_product_stock" name="quantity_to_add" required />
+          </div>
+
+          <div class="d-flex">
+            <button type="submit" class="btn btn-primary me-3" id="addProductStockBtn" style="display: none;">Add
+              Stock</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

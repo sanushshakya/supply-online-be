@@ -1,0 +1,537 @@
+{% extends 'base.html' %}
+{% comment %} In Django templates, {% load static %} should be included at the top of the template file or within the
+base template to enable the use of the {% static %} tag {% endcomment %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+  <h1>Product Management</h1>
+
+  <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+    <form method="get" action="{% url 'product_management' %}" class="mb-3 mt-3">
+      <label for="barcode">Filter by barcode:</label>
+      <input type="text" id="barcode" name="barcode" value="{{ request.GET.barcode|default_if_none:'' }}"
+        placeholder="Enter barcode..." />
+      <button class="btn btn-secondary" type="submit">Filter</button>
+      <button class="btn btn-danger me-3" id="remove-quick-filter-btn" type="button" onclick="removeAllFilters()">Remove
+        filters</button>
+    </form>
+
+    <form class="d-flex" method="get" action="{% url 'product_management' %}">
+      <input class="form-control me-2" type="search" name="search" value="{{ request.GET.search|default_if_none:'' }}"
+        placeholder="Search" aria-label="Search" />
+      <button class="btn btn-outline-success" type="submit">Search</button>
+    </form>
+
+
+  </div>
+
+
+
+  <div class="d-flex mb-3" style="background-color: aliceblue; padding: 20px;">
+    <label class="me-5" style="align-self: center;"> Quick Filters: </label>
+    <button class="btn btn-outline-primary me-3" id="no-image-quick-filter-btn" type="button" data-filter="no-image"
+      onclick="applyQuickFilter('no-image')">No image</button>
+    <button class="btn btn-outline-primary me-3" id="no-department-quick-filter-btn" type="button"
+      data-filter="no-department" onclick="applyQuickFilter('no-department')">No
+      department</button>
+    <button class="btn btn-outline-primary me-3" id="no-brand-quick-filter-btn" type="button" data-filter="no-brand"
+      onclick="applyQuickFilter('no-brand')">No brand</button>
+    <button class="btn btn-outline-primary me-3" id="no-price-quick-filter-btn" type="button" data-filter="no-price"
+      onclick="applyQuickFilter('no-price')">No price</button>
+    <button class="btn btn-outline-primary me-3" id="no-netcontents-quick-filter-btn" type="button"
+      data-filter="no-netcontents" onclick="applyQuickFilter('no-netcontents')">No netcontents</button>
+    <button class="btn btn-outline-primary me-3" id="no-stock-quick-filter-btn" type="button" data-filter="no-stock"
+      onclick="applyQuickFilter('no-stock')">No stock</button>
+    <button class="btn btn-outline-primary me-3" id="no-approval-quick-filter-btn" type="button"
+      data-filter="no-approval" onclick="applyQuickFilter('no-approval')">No approval</button>
+  </div>
+
+  <div class="d-flex mb-3" style="background-color: rgb(230, 253, 244); padding: 20px;">
+    <label class="me-5" style="align-self: center;"> Categories: </label>
+    {% for category in categories %}
+      <button class="btn btn-outline-primary me-3" id="category-{{ category.name|slugify|lower }}-btn" type="button" data-filter="no-image"
+        onclick="applyCategoryFilter('{{ category.name|slugify|lower }}')">{{category.name}}</button>
+    {% endfor %}
+  </div>
+  
+  <!-- Bootstrap Table -->
+  <div class="table-responsive">
+    <div class="table-container">
+      <table class="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Barcode</th>
+            <th>Price</th>
+            <th>Box Price</th>
+            <th>Category</th>
+            <th>Subcategory</th>
+            <th>Department</th>
+            <th>Stock</th>
+            <th>Catering</th>
+            <th>Net Contents</th>
+            <th>Location in store</th>
+            <th>Action</th> <!-- New column for Update button -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+          <tr>
+            <td>{{ product.name }}</td>
+            <td>{{ product.barcode }}</td>
+            <td>{{ product.price }}</td>
+            <td>{{ product.box_product.price|default:'None' }}</td>
+            <td>{{ product.category }}</td>
+            <td>{{ product.sub_category }}</td>
+            <td>{{ product.product_department }}</td>
+            <td>{{ product.stock_quantity }}</td>
+            <td>{{ product.is_available_for_catering }}</td>
+            <td>{{ product.net_contents }}</td>
+            <td>{{ product.location_in_store }}</td>
+            <td>
+              <div class="d-flex">
+                <button class="btn btn-primary ms-2 me-2" data-bs-toggle="modal"
+                  data-bs-target="#viewModal{{ product.product_id }}">View</button>
+                <button class="btn btn-danger me-2" data-bs-toggle="modal"
+                  data-bs-target="#updateModal{{ product.product_id }}"
+                  id="product-update-button{{product.product_id}}">Update</button>
+                <button class="btn btn-success" id="product-approve-button{{product.product_id}}"
+                  data-product-id="{{product.product_id}}" 
+                  {% if not user.is_superuser %}hidden{% endif %} 
+                  {% if product.is_admin_approved %}disabled{% endif %}>
+                  {% if product.is_admin_approved %}Approved{% else %}Approve{% endif %}
+                </button>
+              </div>
+            </td>
+          </tr>
+
+          <div class="modal fade" id="viewModal{{ product.product_id }}" tabindex="-1" aria-labelledby="viewModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="viewModalLabel">Product Details</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- Display product details here -->
+                  <ul>
+                    <li>
+                      <strong>Product ID:</strong> {{ product.product_id }}
+                    </li>
+                    <li>
+                      <strong>Barcode:</strong> {{ product.barcode }}
+                    </li>
+                    <li>
+                      <strong>Name:</strong> {{ product.name }}
+                    </li>
+                    <li>
+                      <strong>Brand:</strong> {{ product.brand }}
+                    </li>
+                    <li>
+                      <strong>Price:</strong> {{ product.price }}
+                    </li>
+                    <li>
+                      <strong>Tax Category:</strong> {{ product.tax_category }}
+                    </li>
+                    <li>
+                      <strong>Description:</strong> {{ product.description }}
+                    </li>
+                    <li>
+                      <strong>Category:</strong> {{ product.category }}
+                    </li>
+                    <li>
+                      <strong>Subcategory:</strong> {{ product.sub_category }}
+                    </li>
+                    <li>
+                      <strong>Department:</strong> {{ product.product_department }}
+                    </li>
+                    <li>
+                      <strong>Frozen:</strong> {% if product.is_frozen %}
+                      Yes
+                      {% else %}
+                      No
+                      {% endif %}
+                    </li>
+                    <li>
+                      <strong>Chilled:</strong> {% if product.is_chilled %}
+                      Yes
+                      {% else %}
+                      No
+                      {% endif %}
+                    </li>
+                    <li>
+                      <strong>Supplier:</strong> {{ product.supplier }}
+                    </li>
+                    <li>
+                      <strong>Stock Quantity:</strong> {{ product.stock_quantity }}
+                    </li>
+                    <li>
+                      <strong>Ingredients:</strong> {{ product.ingredients }}
+                    </li>
+                    <li>
+                      <strong>Allergens:</strong> {{ product.allergens }}
+                    </li>
+                    <li>
+                      <strong>Net Contents:</strong> {{ product.net_contents }}
+                    </li>
+                    <li>
+                      <strong>Preparation and Usage:</strong> {{ product.preparation_and_usage }}
+                    </li>
+                    <li>
+                      <strong>Box Price:</strong> {{ product.box_product.price|default:'None' }}
+                    </li>
+                    <li>
+                      <strong>Box Product:</strong> {{ product.box_product|default:'None' }}
+                    </li>
+                    <li>
+                      <strong>Location in Store:</strong> {{ product.location_in_store }}
+                    </li>
+                    <li>
+                      <strong>Extra Info:</strong> {{ product.extra_info }}
+                    </li>
+                    <li>
+                      <strong>Created At:</strong> {{ product.created_at }}
+                    </li>
+                    <li>
+                      <strong>Updated At:</strong> {{ product.updated_at }}
+                    </li>
+                    <li>
+                      <strong>Product Image:</strong>
+                      <div class="mt-3">
+                        {% if product.product_image_url %}
+                        <img src="{{ product.product_image_url }}" alt="{{ product.product_image_url }}"
+                          width="300px" />
+                        {% else %}
+                        No product image uploaded.
+                        {% endif %}
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal for Update -->
+          <div class="modal fade" id="updateModal{{ product.product_id }}" tabindex="-1"
+            aria-labelledby="updateModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="updateModalLabel">Update Product</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- Your update form with prepopulated product details goes here -->
+                  <form method="POST" action="{% url 'update_product_by_product_id' product_id=product.product_id %}"
+                    enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.product_id }}" />
+
+                    <div class="mb-3">
+                      <label for="name" class="form-label">Name</label>
+                      <input type="text" class="form-control" id="name_product_update" name="name"
+                        value="{{ product.name }}" required />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="barcode" class="form-label">Barcode</label>
+                      <input type="text" class="form-control" id="barcode_product_update" name="barcode"
+                        value="{{ product.barcode }}" required />
+                    </div>
+
+                    <div class="d-flex mb-3">
+                      <div class="me-1">
+                        <label for="cost_price" class="form-label">Cost Price</label>
+                        <input type="number" class="form-control" id="cost_price_product_update" name="cost_price"
+                          value="{{ product.cost_price|default_if_none:0.00 }}" step="0.01" required min="0" />
+                      </div>
+
+                      <div class="me-1">
+                        <label for="profit_margin" class="form-label">Profit Margin</label>
+                        <input type="number" class="form-control" id="profit_margin_product_update" name="profit_margin"
+                          value="{{ product.profit_margin|default_if_none:0.00 }}" step="0.01" required min="0" />
+                      </div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-block mb-2" id="calculateSellingPriceUpdatebtn">Get
+                      SP</button>
+                    <button type="button" class="btn btn-info btn-block mb-2" style="color: white;"
+                      id="calculateProfitMarginUpdatebtn">Get
+                      PM</button>
+
+                    <div class="mb-3">
+                      <label for="price" class="form-label">Selling Price</label>
+                      <input type="number" class="form-control" id="price_product_update" name="price"
+                        value="{{ product.price }}" step="0.01" required min="0" />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="tax_category" class="form-label">Tax Category</label>
+                      <!-- Dropdown for selecting tax category -->
+                      <select class="form-select" id="select-tax-category-update" name="tax_category">
+                        <option value="" selected disabled>Select Tax Category</option>
+                        {% for tcategory in tax_categories %}
+                        {% if product.tax_category and product.tax_category.id == tcategory.id %}
+                        <option value="{{ tcategory.id }}" selected>{{ tcategory.name }}</option>
+                        {% else %}
+                        <option value="{{ tcategory.id }}">{{ tcategory.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="box_price" class="form-label">Box Price</label>
+                      <input type="number" class="form-control" id="box_price_product_update" name="box_price"
+                        value="{% if product.box_product is not None %}{{ product.box_product.price }}{% endif %}"
+                        step="0.01" min="0" disabled />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="ingredients" class="form-label">Ingredients</label>
+                      <textarea class="form-control" id="ingredients_product_update" name="ingredients"
+                        rows="3">{{ product.ingredients|default_if_none:'' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="allergens" class="form-label">Allergens</label>
+                      <textarea class="form-control" id="allergens_product_update" name="allergens"
+                        rows="3">{{ product.allergens|default_if_none:'' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="name" class="form-label">Brand</label>
+                      <input type="text" class="form-control" id="brand_product_update" name="brand"
+                        value="{{ product.brand }}" />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="description" class="form-label">Description</label>
+                      <textarea class="form-control" id="description_product_update" name="description"
+                        rows="3">{{ product.description }}</textarea>
+                    </div>
+
+                    <div class="d-flex mb-3">
+                      <div class="me-3">
+                        <label for="is_frozen" class="form-check-label">Frozen</label>
+                        {% if product.is_frozen %}
+                        <input class="form-check-input" type="checkbox" id="is_frozen" name="is_frozen" checked />
+                        {% else %}
+                        <input class="form-check-input" type="checkbox" id="is_frozen" name="is_frozen" />
+                        {% endif %}
+                      </div>
+                      <div class="me-3">
+                        <label for="is_chilled" class="form-check-label">Chilled</label>
+                        {% if product.is_chilled %}
+                        <input class="form-check-input" type="checkbox" id="is_chilled" name="is_chilled" checked />
+                        {% else %}
+                        <input class="form-check-input" type="checkbox" id="is_chilled" name="is_chilled" />
+                        {% endif %}
+                      </div>
+                    </div>
+
+
+                    <div class="mb-3">
+                      <label for="category" class="form-label">Category</label>
+                      <!-- Dropdown for selecting category -->
+                      <select class="form-select" id="select-category-update" name="category">
+                        <option value="" selected disabled>Select Category</option>
+                        {% for category in categories %}
+                        {% if product.category and product.category.id == category.id %}
+                        <option value="{{ category.id }}" selected>{{ category.name }}</option>
+                        {% else %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="sub_category" class="form-label">Sub Category</label>
+                      <!-- Dropdown for selecting sub category, the logic to update the subcategory list when the category changes is handled by the js script -->
+                      <select class="form-select" id="sub-category-select-update" name="sub_category">
+                        <option value="" selected disabled>Select Sub Category</option>
+                        {% for subcategory in product.category.subcategories.all %}
+                        {% if product.sub_category and product.sub_category.id == subcategory.id %}
+                        <option value="{{ subcategory.id }}" selected>{{ subcategory.name }}</option>
+                        {% else %}
+                        <option value="{{ subcategory.id }}">{{ subcategory.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="department" class="form-label">Product Department</label>
+                      <!-- Dropdown for selecting department -->
+                      <select class="form-select" id="select-department-update" name="product_department">
+                        <option value="" selected disabled>Select Product Department</option>
+                        {% for department in product_departments %}
+                        {% if product.product_department and product.product_department.id == department.id %}
+                        <option value="{{ department.id }}" selected>{{ department.name }}</option>
+                        {% else %}
+                        <option value="{{ department.id }}">{{ department.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+
+                    <div class="mb-3">
+                      <label for="supplier" class="form-label">Supplier</label>
+                      <!-- Dropdown for selecting supplier -->
+                      <select class="form-select" id="select-supplier" name="supplier" required>
+                        <option value="" selected disabled>Select Supplier</option>
+                        {% for supplier in suppliers %}
+                        {% if product.supplier and supplier.id == product.supplier.id%}
+                        <option value="{{ supplier.id }}" selected>{{ supplier.name }}</option>
+                        {% else %}
+                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+
+                    <div class="mb-3">
+                      <label for="stock_quantity" class="form-label">Stock Quantity</label>
+                      <input type="number" class="form-control" id="stock_quantity_product_update" name="stock_quantity"
+                        value="{{ product.stock_quantity }}" required min="0" />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="net_contents" class="form-label">Net Contents</label>
+                      <input type="text" class="form-control" id="net_contents_product_update" name="net_contents"
+                        value="{{ product.net_contents|default_if_none:'' }}" />
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="preparation_and_usage" class="form-label">Preparation and Usage</label>
+                      <textarea class="form-control" id="prep_and_usage_product_update" name="preparation_and_usage"
+                        rows="3">{{ product.preparation_and_usage|default_if_none:'' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="location_in_store" class="form-label">Location in Store</label>
+                      <!-- Dropdown for selecting location in store -->
+                      <select class="form-select" id="select-location-in-store-update" name="location_in_store"
+                        required>
+                        <option value="" selected disabled>Location in Store</option>
+                        {% for location in locations_in_store %}
+                        {% if product.location_in_store and location.id == product.location_in_store.id%}
+                        <option value="{{ location.id }}" selected>{{ location.name }}</option>
+                        {% else %}
+                        <option value="{{ location.id }}">{{ location.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div class="form-group d-flex mb-4 mt-3">
+                      <label for="productImage" class="me-4">Product Image:</label>
+                      <input type="file" class="form-control-file" id="productImage_update" name="product_image"
+                        accept="image/*" />
+                    </div>
+                    <div class="mt-1" style="text-align: center;">
+                      {% if product.product_image_url %}
+                      <img src="{{ product.product_image_url }}" alt="{{ product.product_image_url }}" height="100px" />
+                      {% else %}
+                      No product image uploaded.
+                      {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="extra_info" class="form-label">Any extra information?</label>
+                      <textarea class="form-control" id="extra_info_product_update" name="extra_info"
+                        rows="3">{{ product.extra_info|default_if_none:'' }}</textarea>
+                    </div>
+
+                    <!-- Add other product fields as needed -->
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Discard</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add pagination links below the table -->
+  <div class="d-flex justify-content-center">
+
+    <div class="pagination">
+      <span class="step-links">
+        {% if products.has_previous %}
+        <a
+          href="?{% if request.GET.barcode %}barcode={{ request.GET.barcode }}&{% endif %}{% if request.GET.filter_type %}filter_type={{ request.GET.filter_type }}&{% endif %}{% if request.GET.search%}search={{request.GET.search}}&{%endif%}page=1">&laquo;
+          first</a>
+        <a
+          href="?{% if request.GET.barcode %}barcode={{ request.GET.barcode }}&{% endif %}{% if request.GET.filter_type %}filter_type={{ request.GET.filter_type }}&{% endif %}{% if request.GET.search%}search={{request.GET.search}}&{%endif%}page={{ products.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+          Page {{ products.number }} of {{ products.paginator.num_pages }}.
+        </span>
+
+        {% if products.has_next %}
+        <a
+          href="?{% if request.GET.barcode %}barcode={{ request.GET.barcode }}&{% endif %}{% if request.GET.filter_type %}filter_type={{ request.GET.filter_type }}&{% endif %}{% if request.GET.search%}search={{request.GET.search}}&{%endif%}page={{ products.next_page_number }}">next</a>
+        <a
+          href="?{% if request.GET.barcode %}barcode={{ request.GET.barcode }}&{% endif %}{% if request.GET.filter_type %}filter_type={{ request.GET.filter_type }}&{% endif %}{% if request.GET.search%}search={{request.GET.search}}&{%endif%}page={{ products.paginator.num_pages }}">last
+          &raquo;</a>
+        {% endif %}
+      </span>
+    </div>
+
+
+  </div>
+
+  <!-- Button to trigger modal for adding a new product, category, subcategory -->
+  <div class="d-flex justify-content-start mb-3 mt-3">
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addProductModal"
+      id="add-product-btn">Add New Product</button>
+
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addCategoryModal">Add New
+      Category</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">Add
+      New Sub Category</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">Add
+      New Product Department</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#linkProductsModal">Link
+      Products</button>
+  </div>
+
+  <div class="d-flex justify-content-start mb-3 mt-3">
+
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#batchUpdateModal"
+      id="batch-product-update-btn">Batch
+      Update</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#priceUpdateModal"
+      id="batch-product-update-btn">Price Update</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addProductStockModal"
+      id="add-product-stock-btn">Stock Update</button>
+    <button type="button" class="btn btn-success me-2" id="marketing-opted-users-btn">Marketing opted users</button>
+    <button type="button" class="btn btn-success me-2" id="export-products-btn">Export All Products</button>
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#syncDataWithEposModal">Sync data</button>
+  </div>
+
+  {% include 'shop/add_product_form.html' %}
+  {% include 'shop/add_product_stock.html' %}
+  {% include 'shop/add_category_form.html' %}
+  {% include 'shop/add_subcategory_form.html' %}
+  {% include 'shop/add_department_form.html' %}
+  {% include 'shop/link_products_form.html' %}
+  {% include 'shop/batch_update_form.html' %}
+  {% include 'shop/price_update_form.html' %}
+  {% include 'shop/sync_data_with_epos.html'%}
+
+  <script src="{% static 'shop/js/product_management.js' %}">
+  </script>
+</div>
+{% endblock %}

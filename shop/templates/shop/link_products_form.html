@@ -1,0 +1,57 @@
+<div class="modal fade" id="linkProductsModal" tabindex="-1" aria-labelledby="linkProductsModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="linkProductsModalLabel">Link Products</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Form for linking products -->
+        <form id="linkProductsForm" method="POST" action="{% url 'link_product_with_box_product' %}">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="productBarcode" class="form-label">Product Barcode</label>
+            <input type="text" class="form-control" id="productBarcode" name="productBarcode" required>
+
+          </div>
+          <!-- Spans to display product details -->
+          <div class="mb-3">
+            <label for="productName" class="form-label">Product Name:</label>
+            <span id="productNameSpan"></span>
+          </div>
+
+          <div class="mb-3">
+            <label for="productPrice" class="form-label">Product Price:</label>
+            <span id="productPriceSpan"></span>
+          </div>
+
+          <hr class="my-4">
+          <div class="mb-3">
+            <label for="boxProductBarcode" class="form-label">Box Product Barcode</label>
+            <input type="text" class="form-control" id="boxProductBarcode" name="boxProductBarcode" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="boxProductName" class="form-label">Box Product Name:</label>
+            <span id="boxProductNameSpan"></span>
+          </div>
+
+          <div class="mb-3">
+            <label for="boxProductPrice" class="form-label">Box Product Price:</label>
+            <span id="boxProductPriceSpan"></span>
+          </div>
+
+
+          <button type="button" class="btn btn-primary" id="fetchProductsBtn">Fetch Products</button>
+
+          <div class="d-flex">
+            <button type="submit" class="btn btn-primary me-3" id="linkBtn" style="display: none;">Link</button>
+            <button type="button" class="btn btn-danger" id="resetLinkFormBtn" style="display: none;">Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

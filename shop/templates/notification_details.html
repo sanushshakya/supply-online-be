@@ -1,0 +1,33 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container">
+  <h1 class="mt-4 mb-3">Notification Details</h1>
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Order Details</h3>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>Order ID:</strong> {{ notification.order.order_id }}</p>
+          <p><strong>Message:</strong> {{ notification.message }}</p>
+          <p><strong>Created At:</strong> {{ notification.created_at }}</p>
+          <p><strong>Updated At:</strong> {{ notification.updated_at }}</p>
+          <p>
+            <strong>Status:</strong> {% if notification.is_read %} Read {% else
+            %} Unread {% endif %}
+          </p>
+          <p>
+            <strong>Order Details:</strong>
+
+            <a
+              href="{% url 'order_details' order_id=notification.order.order_id%}"
+              class="btn btn-primary"
+              >View Order Details</a
+            >
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

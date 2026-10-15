@@ -1,0 +1,131 @@
+{% extends "admin/base_site.html" %} {% block content %}
+
+<div style="max-width: 600px; padding: 20px">
+  <h2>📣 Send Marketing Push Notification</h2>
+
+  <div
+    style="
+      background: #e8f4f8;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    "
+  >
+    <strong>Selected:</strong> {{ total_count }} users &nbsp;|&nbsp;
+    <strong>Push enabled:</strong> {{ subscribed_count }} users
+  </div>
+
+  <form method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="send_marketing_push" />
+
+    <!-- Pass selected user IDs -->
+    {% for item in items %}
+    <input type="hidden" name="_selected_action" value="{{ item.pk }}" />
+    {% endfor %}
+
+    <input type="hidden" name="apply" value="1" />
+
+    <div style="margin-bottom: 16px">
+      <label style="display: block; font-weight: bold; margin-bottom: 6px">
+        Notification Title *
+      </label>
+      <input
+        type="text"
+        name="push_title"
+        required
+        placeholder="e.g. Special Offer! 🏷️"
+        style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ccc;
+          border-radius: 6px;
+          font-size: 14px;
+        "
+      />
+    </div>
+
+    <div style="margin-bottom: 16px">
+      <label style="display: block; font-weight: bold; margin-bottom: 6px">
+        Notification Body *
+      </label>
+      <textarea
+        name="push_body"
+        required
+        rows="3"
+        placeholder="e.g. Get 20% off all Asian foods this weekend only!"
+        style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ccc;
+          border-radius: 6px;
+          font-size: 14px;
+        "
+      ></textarea>
+    </div>
+
+    <div style="margin-bottom: 16px">
+      <label style="display: block; font-weight: bold; margin-bottom: 6px">
+        Link URL (optional)
+      </label>
+      <input
+        type="text"
+        name="push_url"
+        placeholder="/shop/category/Asian"
+        style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ccc;
+          border-radius: 6px;
+          font-size: 14px;
+        "
+      />
+      <small style="color: #666">
+        Where to open when user taps the notification
+      </small>
+    </div>
+
+    <div style="margin-bottom: 24px">
+      <label
+        style="display: flex; align-items: center; gap: 8px; cursor: pointer"
+      >
+        <input type="checkbox" name="marketing_only" />
+        <span>Only send to users who opted into marketing emails</span>
+      </label>
+    </div>
+
+    <div style="display: flex; gap: 12px">
+      <button
+        type="submit"
+        style="
+          background: #1a4089;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: bold;
+        "
+      >
+        📣 Send Push Notification
+      </button>
+      <a
+        href="../"
+        style="
+          background: #ccc;
+          color: #333;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 6px;
+          text-decoration: none;
+          font-size: 14px;
+        "
+      >
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

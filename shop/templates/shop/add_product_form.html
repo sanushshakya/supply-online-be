@@ -1,0 +1,187 @@
+<!-- Modal for adding a new product -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProductModalLabel">Add New Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Your form for adding a new product goes here -->
+        <button type="button" class="btn btn-danger" id="addProductFormResetBtn">Reset</button>
+        <form id="addProductForm" method="POST" action="{% url 'add_product' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div id="fetch_call_response_message_product_add" style="display: none;"></div>
+
+          <div class="mb-3 row">
+            <label for="barcode" class="col-sm-2 col-form-label">Barcode</label>
+            <div class="col-sm-5">
+              <input type="text" class="form-control" id="barcode_product_add" name="barcode" />
+            </div>
+            <div class="col-sm-4">
+              <button type="button" class="btn btn-primary btn-block" id="fetchProductBtn">Fetch Product</button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name_product_add" name="name" required />
+          </div>
+
+          <div class="mb-3">
+            <label for="ingredients" class="form-label">Ingredients</label>
+            <textarea class="form-control" id="ingredients_product_add" name="ingredients" rows="3"></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="allergens" class="form-label">Allergens</label>
+            <textarea class="form-control" id="allergens_product_add" name="allergens" rows="3"></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="name" class="form-label">Brand</label>
+            <input type="text" class="form-control" id="brand_product_add" name="brand" />
+          </div>
+
+          <div class="d-flex mb-3">
+            <div class="me-1">
+              <label for="cost_price" class="form-label">Cost Price</label>
+              <input type="number" class="form-control" id="cost_price" name="cost_price" step="0.01" required
+                min="0" />
+            </div>
+
+            <div class="me-1">
+              <label for="profit_margin" class="form-label">Profit Margin</label>
+              <input type="number" class="form-control" id="profit_margin" name="profit_margin" step="0.01" required
+                min="0" />
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block mb-2" id="calculateSellingPricebtn">Get SP</button>
+          <button type="button" class="btn btn-info mb-2" style="color: white;" id="calculateProfitMarginbtn">Get
+            PM</button>
+
+          <div class="mb-3">
+            <label for="price" class="form-label">Selling Price</label>
+            <input type="number" class="form-control" id="price" name="price" step="0.01" required min="0" />
+          </div>
+
+          <div class="mb-3">
+            <label for="tax_category" class="form-label">Tax Category</label>
+            <!-- Dropdown for selecting tax category -->
+            <select class="form-select" id="select-tax-category-update" name="tax_category">
+              <option value="" selected disabled>Select Tax Category</option>
+              {% for tcategory in tax_categories %}
+              <option value="{{ tcategory.id }}">{{ tcategory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {% comment %} <div class="mb-3">
+            <label for="box_price" class="form-label">Box Price</label>
+            <input type="number" class="form-control" id="box_price" name="box_price" step="0.01" min="0" />
+          </div> {% endcomment %}
+
+          <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+          </div>
+
+          <div class="d-flex mb-3">
+            <div class="me-3">
+              <label for="is_frozen" class="form-check-label">Frozen</label>
+              <input class="form-check-input" type="checkbox" id="is_frozen" name="is_frozen" />
+            </div>
+            <div class="me-3">
+              <label for="is_chilled" class="form-check-label">Chilled</label>
+              <input class="form-check-input" type="checkbox" id="is_chilled" name="is_chilled" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="category" class="form-label">Category</label>
+            <!-- Dropdown for selecting category -->
+            <select class="form-select" id="select-category" name="category" required>
+              <option value="" selected disabled>Select Category</option>
+              {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="sub_category" class="form-label">Sub Category</label>
+            <!-- Dropdown for selecting sub category -->
+            <select class="form-select" id="sub-category-select" name="sub_category">
+              <option value="" select disabled>Select Sub Category</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="department" class="form-label">Product Department</label>
+            <!-- Dropdown for selecting department -->
+            <select class="form-select" id="select-department" name="product_department" required>
+              <option value="" selected disabled>Select Product Department</option>
+              {% for department in product_departments %}
+              <option value="{{ department.id }}">{{ department.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="supplier" class="form-label">Supplier</label>
+            <!-- Dropdown for selecting supplier -->
+            <select class="form-select" id="select-supplier" name="supplier" required>
+              <option value="" selected disabled>Select Supplier</option>
+              {% for supplier in suppliers %}
+              <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="stock_quantity" class="form-label">Stock Quantity</label>
+            <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" required min="0" />
+          </div>
+
+          <div class="mb-3">
+            <label for="net_contents" class="form-label">Net Contents</label>
+            <input type="text" class="form-control" id="net_contents_product_add" name="net_contents" />
+          </div>
+
+          <div class="mb-3">
+            <label for="preparation_and_usage" class="form-label">Preparation and Usage</label>
+            <textarea class="form-control" id="prep_and_usage_product_add" name="preparation_and_usage"
+              rows="3"></textarea>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="location_in_store" class="form-label">Location in Store</label>
+            <!-- Dropdown for selecting location in store -->
+            <select class="form-select" id="select-location-in-store" name="location_in_store" required>
+              <option value="" selected disabled>Location in Store</option>
+              {% for location in locations_in_store %}
+              <option value="{{ location.id }}">{{ location.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group d-flex mb-4 mt-3">
+            <label for="productImage" class="me-4">Product Image:</label>
+            <input type="file" class="form-control-file" id="productImage_add" name="product_image" accept="image/*" />
+          </div>
+
+          <div class="mb-3">
+            <label for="extra_info" class="form-label">Any extra information?</label>
+            <textarea class="form-control" id="extra_info_product_add" name="extra_info" rows="3"></textarea>
+          </div>
+
+          <!-- Add other fields as needed -->
+          <button type="submit" class="btn btn-primary">Add Product</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,14 @@
+**__pycache__**
+.vscode
+.coverage
+logs/*
+.venv
+.env
+.circleci/*
+nginx_server/*
+
+# ignore static files as it will be collected during build process
+staticfiles/
+
+# ignore sqlite db
+db.sqlite3
