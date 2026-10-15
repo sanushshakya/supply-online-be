@@ -1,5 +1,8 @@
 import json
 import logging
+from datetime import timedelta
+
+import requests
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -361,3 +364,98 @@ def complete_orders_and_notify(self, order_ids):
 
     logger.info(f"complete_orders_and_notify done: {results}")
     return results
+
+
+# ─── Supply Chain IQ integration outbox ───────────────────────────────────────
+
+MAX_DELIVERY_ATTEMPTS = 20
+
+
+def _record_failure(event, error):
+    event.attempts += 1
+    event.last_error = str(error)[:500]
+    if event.attempts >= MAX_DELIVERY_ATTEMPTS:
+        event.status = "failed"
+    else:
+        event.next_attempt_at = timezone.now() + timedelta(
+            seconds=min(2**event.attempts, 3600)
+        )
+    event.save(update_fields=["attempts", "last_error", "status", "next_attempt_at"])
+
+
+@shared_task(name="shop.tasks.deliver_integration_event")
+def deliver_integration_event(event_pk):
+    """Deliver one outbound event, signed, to Supply Chain IQ.
+
+    Returns True only when this call delivered it. Never logs the secret or
+    the signature header.
+    """
+    from django.db import transaction
+
+    from shop.integration.models import IntegrationEvent
+    from shop.integration.signing import sign
+
+    url = settings.IQ_WEBHOOK_URL
+    secret = settings.IQ_WEBHOOK_SECRET
+    if not url:
+        return False
+
+    with transaction.atomic():
+        event = (
+            IntegrationEvent.objects.select_for_update(skip_locked=True)
+            .filter(
+                pk=event_pk,
+                direction="out",
+                status="pending",
+                next_attempt_at__lte=timezone.now(),
+            )
+            .first()
+        )
+        if event is None:
+            return False
+
+        # serialize once: these exact bytes are signed and sent
+        body = json.dumps(event.payload, separators=(",", ":"), sort_keys=True).encode()
+        try:
+            response = requests.post(
+                url,
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Integration-Signature": sign(secret, body),
+                },
+                timeout=10,
+            )
+        except Exception as exc:
+            logger.warning("IQ delivery of event %s failed: %s", event.event_id, type(exc).__name__)
+            _record_failure(event, f"{type(exc).__name__}: {exc}")
+            return False
+
+        if 200 <= response.status_code < 300:
+            event.status = "delivered"
+            event.last_error = ""
+            event.save(update_fields=["status", "last_error"])
+            return True
+
+        logger.warning(
+            "IQ delivery of event %s failed: HTTP %s", event.event_id, response.status_code
+        )
+        _record_failure(event, f"HTTP {response.status_code}: {(response.text or '')[:200]}")
+        return False
+
+
+@shared_task(name="shop.tasks.deliver_integration_events")
+def deliver_integration_events(batch_size=50):
+    """Sweep: retry due pending outbound events. Returns the number delivered."""
+    from shop.integration.models import IntegrationEvent
+
+    if not settings.IQ_WEBHOOK_URL:
+        return 0
+    due = list(
+        IntegrationEvent.objects.filter(
+            direction="out", status="pending", next_attempt_at__lte=timezone.now()
+        )
+        .order_by("next_attempt_at")
+        .values_list("pk", flat=True)[:batch_size]
+    )
+    return sum(1 for pk in due if deliver_integration_event(pk))

@@ -398,4 +398,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'shop.tasks.cleanup_expired_subscriptions',
         'schedule': crontab(hour=3, minute=0),
     },
+    # Retry failed / dropped Supply Chain IQ events
+    'deliver-integration-events': {
+        'task': 'shop.tasks.deliver_integration_events',
+        'schedule': 30.0,
+    },
 }
+
+# Supply Chain IQ integration (empty URL disables it)
+IQ_WEBHOOK_URL = os.environ.get('IQ_WEBHOOK_URL', '')
+IQ_WEBHOOK_SECRET = os.environ.get('IQ_WEBHOOK_SECRET', '')

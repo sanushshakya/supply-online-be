@@ -28,6 +28,7 @@ from django.middleware.csrf import get_token
 from django.conf import settings
 from .utils import send_email
 from .exceptions import InsufficientStockError
+from .integration.models import emit
 from .stock import (
     assert_cart_stock,
     commit_paid_order_stock,
@@ -3036,6 +3037,25 @@ def stripe_webhook(request):
                             # reduce the product stock once the user has paid; locks
                             # rows and never raises on a shortfall (logged instead)
                             commit_paid_order_stock(associated_order)
+
+                            # outbox event for Supply Chain IQ; same transaction, and
+                            # only on the first (not already-paid) delivery
+                            emit(
+                                "order.paid",
+                                {
+                                    "order_id": str(associated_order.order_id),
+                                    "items": [
+                                        {
+                                            "product_id": str(item.product.product_id),
+                                            "quantity": item.quantity,
+                                            "unit_price": str(item.order_item_unit_price),
+                                        }
+                                        for item in associated_order.order_items_from_order.select_related(
+                                            "product"
+                                        )
+                                    ],
+                                },
+                            )
 
                     if already_paid:
                         logger.info(

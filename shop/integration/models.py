@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from django.db import models
+from django.conf import settings
+from django.db import models, transaction
 from django.utils import timezone as dj_timezone
 
 
@@ -37,7 +38,14 @@ class IntegrationEvent(models.Model):
 
 
 def emit(event_type, data):
-    """Create an outbound event; call inside the caller's transaction."""
+    """Create an outbound event; call inside the caller's transaction.
+
+    Does nothing (returns None) when IQ_WEBHOOK_URL is not configured, so every
+    caller is a no-op for deployments that are not connected to IQ. Dispatch to
+    Celery happens on commit, so a rollback drops both the row and the send.
+    """
+    if not settings.IQ_WEBHOOK_URL:
+        return None
     event_id = uuid.uuid4()
     payload = {
         "event_id": str(event_id),
@@ -45,9 +53,17 @@ def emit(event_type, data):
         "occurred_at": datetime.now(timezone.utc).isoformat(),
         "data": data,
     }
-    return IntegrationEvent.objects.create(
+    event = IntegrationEvent.objects.create(
         event_id=event_id,
         event_type=event_type,
         direction="out",
         payload=payload,
     )
+
+    def dispatch():
+        from shop.tasks import deliver_integration_event  # lazy: avoid import cycle
+
+        deliver_integration_event.delay(event.pk)
+
+    transaction.on_commit(dispatch)
+    return event
