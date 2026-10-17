@@ -164,6 +164,7 @@ class LoyaltyTransaction(models.Model):
         REDEEM       = "REDEEM",       "Redeemed"
         ADJUSTMENT   = "ADJUSTMENT",   "Manual Adjustment"
         EXPIRY       = "EXPIRY",       "Points Expired"
+        REVERSE_INSTORE = "REVERSE_INSTORE", "Reversed – In-Store"
 
     transaction_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
 
@@ -193,6 +194,15 @@ class LoyaltyTransaction(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Loyalty Transaction"
         verbose_name_plural = "Loyalty Transactions"
+        constraints = [
+            # One in-store award, and at most one reversal of it, per till sale reference.
+            models.UniqueConstraint(
+                fields=["transaction_type", "order_reference"],
+                condition=models.Q(order_reference__isnull=False)
+                & models.Q(transaction_type__in=["EARN_INSTORE", "REVERSE_INSTORE"]),
+                name="uniq_instore_reference",
+            ),
+        ]
 
     def __str__(self) -> str:
         sign = "+" if self.points >= 0 else ""

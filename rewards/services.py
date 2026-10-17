@@ -5,7 +5,7 @@ import io
 from decimal import Decimal, ROUND_DOWN
 from typing import Optional
 
-from django.db import transaction as db_tx
+from django.db import IntegrityError, transaction as db_tx
 
 from .models import LoyaltyAccount, LoyaltyConfig, LoyaltyTransaction
 
@@ -92,13 +92,18 @@ def award_points_for_instore(
     order_reference: Optional[str] = None,
 ) -> LoyaltyTransaction:
     """
-    Called by till staff when they scan a customer's loyalty barcode.
+    Called by till staff (or the IQ till) when they scan a customer's loyalty barcode.
     Raises ValueError for unknown / inactive barcodes.
+
+    Idempotent on a non-blank ``order_reference``: a repeat returns the original
+    transaction and changes nothing. The account row is locked, so concurrent
+    awards cannot lose points.
     """
+    order_reference = order_reference or None
     try:
-        account = (
+        account_pk = (
             LoyaltyAccount.objects
-            .select_related("user_profile")
+            .values_list("pk", flat=True)
             .get(barcode_number=barcode_number, is_active=True)
         )
     except LoyaltyAccount.DoesNotExist:
@@ -106,23 +111,87 @@ def award_points_for_instore(
             f"No active loyalty account found for barcode '{barcode_number}'."
         )
 
-    points = calculate_points(order_amount)
-    if points <= 0:
-        raise ValueError("No points to award — loyalty programme may be paused.")
+    try:
+        with db_tx.atomic():
+            account = (
+                LoyaltyAccount.objects.select_for_update()
+                .select_related("user_profile")
+                .get(pk=account_pk)
+            )
+            if order_reference:
+                existing = LoyaltyTransaction.objects.filter(
+                    transaction_type=LoyaltyTransaction.TransactionType.EARN_INSTORE,
+                    order_reference=order_reference,
+                ).first()
+                if existing:
+                    return existing
 
-    with db_tx.atomic():
-        account.points_balance += points
-        account.total_points_earned += points
-        account.save(update_fields=["points_balance", "total_points_earned", "updated_at"])
+            points = calculate_points(order_amount)
+            if points <= 0:
+                raise ValueError("No points to award — loyalty programme may be paused.")
 
-        return LoyaltyTransaction.objects.create(
-            loyalty_account=account,
+            account.points_balance += points
+            account.total_points_earned += points
+            account.save(update_fields=["points_balance", "total_points_earned", "updated_at"])
+
+            return LoyaltyTransaction.objects.create(
+                loyalty_account=account,
+                transaction_type=LoyaltyTransaction.TransactionType.EARN_INSTORE,
+                points=points,
+                order_amount_gbp=order_amount,
+                order_reference=order_reference,
+                description=f"In-store purchase  (£{order_amount:.2f})",
+                balance_after=account.points_balance,
+            )
+    except IntegrityError:
+        # a concurrent award with the same reference won the race (rolled back here)
+        return LoyaltyTransaction.objects.get(
             transaction_type=LoyaltyTransaction.TransactionType.EARN_INSTORE,
-            points=points,
-            order_amount_gbp=order_amount,
             order_reference=order_reference,
-            description=f"In-store purchase  (£{order_amount:.2f})",
-            balance_after=account.points_balance,
+        )
+
+
+def reverse_instore_award(order_reference: str) -> Optional[LoyaltyTransaction]:
+    """
+    Undo the in-store award for ``order_reference`` (the till sale was voided).
+
+    Deducts exactly the points earned, even if the balance goes negative because
+    they were already spent (recorded, not refused). Idempotent: a repeat returns
+    the original reversal. Returns None when there is no award to reverse.
+    """
+    if not order_reference:
+        return None
+    T = LoyaltyTransaction.TransactionType
+    try:
+        with db_tx.atomic():
+            award = LoyaltyTransaction.objects.filter(
+                transaction_type=T.EARN_INSTORE, order_reference=order_reference
+            ).first()
+            if award is None:
+                return None
+            account = LoyaltyAccount.objects.select_for_update().get(pk=award.loyalty_account_id)
+            existing = LoyaltyTransaction.objects.filter(
+                transaction_type=T.REVERSE_INSTORE, order_reference=order_reference
+            ).first()
+            if existing:
+                return existing
+
+            account.points_balance -= award.points
+            account.total_points_earned -= award.points
+            account.save(update_fields=["points_balance", "total_points_earned", "updated_at"])
+
+            return LoyaltyTransaction.objects.create(
+                loyalty_account=account,
+                transaction_type=T.REVERSE_INSTORE,
+                points=-award.points,
+                order_amount_gbp=award.order_amount_gbp,
+                order_reference=order_reference,
+                description=f"In-store purchase voided  (-{award.points} pts)",
+                balance_after=account.points_balance,
+            )
+    except IntegrityError:
+        return LoyaltyTransaction.objects.get(
+            transaction_type=T.REVERSE_INSTORE, order_reference=order_reference
         )
 
 
