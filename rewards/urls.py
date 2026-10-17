@@ -1,5 +1,7 @@
 """rewards/urls.py"""
 from django.urls import path
+
+from .integration_views import LoyaltyEventView, LoyaltyLookupView
 from .views import (
     AdminLoyaltyAccountDetailView,
     InstoreAwardView,
@@ -25,6 +27,10 @@ urlpatterns = [
         AdminLoyaltyAccountDetailView.as_view(),
         name="admin-account-detail",
     ),
+
+    # IQ till — signed with IQ_WEBHOOK_SECRET, no user auth
+    path("api/integration/lookup/", LoyaltyLookupView.as_view(), name="integration-lookup"),
+    path("api/integration/events/", LoyaltyEventView.as_view(), name="integration-events"),
 
     # Programme config
     path("api/config/",          LoyaltyConfigView.as_view(),     name="config"),

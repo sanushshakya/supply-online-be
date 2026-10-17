@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import time
 
+from django.conf import settings
+
 
 def _mac(secret, t, body):
     return hmac.new(
@@ -38,3 +40,12 @@ def verify(secret, body, header, now=None, tolerance=300):
         return hmac.compare_digest(_mac(secret, t, body), given)
     except (ValueError, TypeError):
         return False
+
+
+def verify_request(request):
+    """True only if ``request`` is signed with ``IQ_WEBHOOK_SECRET`` (False when unset)."""
+    return verify(
+        settings.IQ_WEBHOOK_SECRET,
+        request.body,
+        request.headers.get("X-Integration-Signature"),
+    )
