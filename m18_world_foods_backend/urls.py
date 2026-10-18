@@ -26,6 +26,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("shop/", include("shop.urls")),
      path("rewards/", include("rewards.urls")),
+    # Signed endpoints Supply Chain IQ calls (shop/integration/views.py)
+    path("integration/", include("shop.integration.urls")),
 ]
 
 # Serve static content like js, css files associated with admin, swagger, etc.

@@ -252,6 +252,13 @@ class ProductAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return self.model.all_objects.get_queryset()
 
+    def get_readonly_fields(self, request, obj=None):
+        # Stock of a product Supply Chain IQ manages is changed in IQ, never here.
+        fields = [*super().get_readonly_fields(request, obj), "iq_managed", "iq_available", "iq_stock_version"]
+        if obj is not None and obj.iq_managed:
+            fields.append("stock_quantity")
+        return fields
+
     def product_like_count(self, obj):
         return obj.likes.count()
     product_like_count.short_description = "User Like Count"

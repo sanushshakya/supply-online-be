@@ -99,6 +99,7 @@ from .models import (
     PushSubscription,
 )
 from .serializers import (
+    IQ_MANAGED_STOCK,
     ProductSerializer,
     CategorySerializer,
     SupplierSerializer,
@@ -3425,6 +3426,9 @@ def update_product_by_product_id(request, product_id):
         serializer.save()
         messages.success(request, "Product updated successfully.")
     else:
+        if "stock_quantity" in serializer.errors:
+            messages.error(request, IQ_MANAGED_STOCK)
+            return redirect("product_management")
         messages.error(
             request, "Error updating product. Error while serializer validation"
         )
@@ -3496,6 +3500,9 @@ def add_product_stock(request):
                 quantity_to_add = request.POST.get("quantity_to_add")
 
                 product = Product.objects.get(barcode=product_barcode)
+                if product.iq_managed:
+                    messages.error(request, IQ_MANAGED_STOCK)
+                    return redirect("product_management")
                 new_stock = product.stock_quantity + int(quantity_to_add)
                 if new_stock < 0:
                     raise Exception("Stock can't be negative")

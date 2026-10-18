@@ -196,6 +196,11 @@ class Product(models.Model):
     stock_quantity = models.PositiveIntegerField(
         default=0, validators=[MinValueValidator(0)]
     )
+    # Stock owned by Supply Chain IQ: set by its stock.changed events (shop/integration/stock.py), and then
+    # stock_quantity can no longer be edited here. iq_available is IQ's last figure; iq_stock_version its version.
+    iq_managed = models.BooleanField(default=False)
+    iq_available = models.IntegerField(null=True, blank=True)
+    iq_stock_version = models.PositiveBigIntegerField(default=0)
     ingredients = models.TextField(blank=True, null=True)
     allergens = models.TextField(blank=True, null=True)
     net_contents = models.CharField(max_length=20, null=True, blank=True)

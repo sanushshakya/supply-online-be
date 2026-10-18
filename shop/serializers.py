@@ -92,7 +92,29 @@ class PartialReviewSerializer(serializers.ModelSerializer):
         fields = ["review_id", "user", "text", "updated_at"]
 
 
-class ProductSerializer(serializers.ModelSerializer):
+IQ_MANAGED_STOCK = "Stock for this product is managed in Supply Chain IQ."
+IQ_FIELDS = ("iq_managed", "iq_available", "iq_stock_version")
+
+
+class IqManagedStockMixin:
+    """Stock of a product Supply Chain IQ manages can only change through IQ; the iq_* fields never by hand."""
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        for field in IQ_FIELDS:
+            attrs.pop(field, None)
+        instance = self.instance
+        if (
+            instance is not None
+            and instance.iq_managed
+            and "stock_quantity" in attrs
+            and attrs["stock_quantity"] != instance.stock_quantity
+        ):
+            raise serializers.ValidationError({"stock_quantity": IQ_MANAGED_STOCK})
+        return attrs
+
+
+class ProductSerializer(IqManagedStockMixin, serializers.ModelSerializer):
     
     product_department = serializers.CharField(
             source="product_department.name",
@@ -125,7 +147,7 @@ class PromotionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class CustomerFacingProductSerializer(serializers.ModelSerializer):
+class CustomerFacingProductSerializer(IqManagedStockMixin, serializers.ModelSerializer):
     reviews = PartialReviewSerializer(read_only=True, many=True)
     likes = CustomerFacingLikeSerializer(read_only=True, many=True)
     discounted_price = serializers.DecimalField(
@@ -145,6 +167,7 @@ class CustomerFacingProductSerializer(serializers.ModelSerializer):
             "updated_at",
             "supplier",
             "location_in_store",
+            *IQ_FIELDS,
         ]
 
     def get_discounted_price(self, obj):

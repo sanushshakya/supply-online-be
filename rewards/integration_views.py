@@ -1,38 +1,14 @@
-"""rewards/integration_views.py — endpoints the IQ till calls, authenticated by signature only."""
+"""rewards/integration_views.py — loyalty endpoints and event handlers for the IQ till (signature-only auth)."""
 from __future__ import annotations
 
-import json
-import uuid
 from decimal import Decimal, InvalidOperation
 
-from django.db import IntegrityError, transaction
-from rest_framework import permissions
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from shop.integration.models import IntegrationEvent
-from shop.integration.signing import verify_request
+from shop.integration.views import IntegrationEventView, SignedIntegrationView
 
 from .models import LoyaltyAccount
 from .services import award_points_for_instore, reverse_instore_award
-
-UNAUTHORISED = {"code": "invalid_signature", "detail": "Invalid or missing signature."}
-
-
-class SignedIntegrationView(APIView):
-    authentication_classes = []
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        if not verify_request(request):
-            return Response(UNAUTHORISED, status=401)
-        try:
-            body = json.loads(request.body)
-        except (ValueError, UnicodeDecodeError):
-            body = None
-        if not isinstance(body, dict):
-            return Response({"detail": "invalid_body"}, status=400)
-        return self.handle(body)
 
 
 class LoyaltyLookupView(SignedIntegrationView):
@@ -58,47 +34,19 @@ class LoyaltyLookupView(SignedIntegrationView):
         })
 
 
-class LoyaltyEventView(SignedIntegrationView):
-    """POST /rewards/api/integration/events/  — loyalty.award / loyalty.reverse envelopes.
+# The original loyalty events route; /integration/events/ handles the same envelopes (and stock.changed).
+LoyaltyEventView = IntegrationEventView
 
-    Idempotent on ``event_id`` (an inbound IntegrationEvent is the marker). Every
-    signed, well-formed envelope gets 200 so IQ never retries a business "no".
-    """
 
-    def handle(self, body):
-        try:
-            event_id = uuid.UUID(str(body["event_id"]))
-            event_type = body["event_type"]
-        except (KeyError, ValueError):
-            return Response({"detail": "invalid_event"}, status=400)
-        if not isinstance(event_type, str) or not event_type:
-            return Response({"detail": "invalid_event"}, status=400)
+def handle_award(data):
+    return {"status": _award(data)}
 
-        try:
-            with transaction.atomic():
-                IntegrationEvent.objects.create(
-                    event_id=event_id,
-                    event_type=event_type[:40],
-                    direction="in",
-                    status="delivered",
-                    payload=body,
-                )
-                result = self.apply(event_type, body.get("data"))
-        except IntegrityError:
-            result = "duplicate"
-        return Response({"status": result})
 
-    def apply(self, event_type, data):
-        if not isinstance(data, dict):
-            return "ignored"
-        if event_type == "loyalty.award":
-            return _award(data)
-        if event_type == "loyalty.reverse":
-            reference = data.get("order_reference")
-            if not isinstance(reference, str) or not reference:
-                return "ignored"
-            return "applied" if reverse_instore_award(reference) else "nothing_to_reverse"
-        return "ignored"
+def handle_reverse(data):
+    reference = data.get("order_reference")
+    if not isinstance(reference, str) or not reference:
+        return {"status": "ignored"}
+    return {"status": "applied" if reverse_instore_award(reference) else "nothing_to_reverse"}
 
 
 def _award(data):
