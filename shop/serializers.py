@@ -93,11 +93,12 @@ class PartialReviewSerializer(serializers.ModelSerializer):
 
 
 IQ_MANAGED_STOCK = "Stock for this product is managed in Supply Chain IQ."
-IQ_FIELDS = ("iq_managed", "iq_available", "iq_stock_version")
+IQ_MANAGED_PRICE = "The price of this product is managed in Supply Chain IQ."
+IQ_FIELDS = ("iq_managed", "iq_available", "iq_stock_version", "iq_price_managed")
 
 
 class IqManagedStockMixin:
-    """Stock of a product Supply Chain IQ manages can only change through IQ; the iq_* fields never by hand."""
+    """Stock (and price) of a product Supply Chain IQ manages can only change through IQ; iq_* fields never by hand."""
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -111,6 +112,13 @@ class IqManagedStockMixin:
             and attrs["stock_quantity"] != instance.stock_quantity
         ):
             raise serializers.ValidationError({"stock_quantity": IQ_MANAGED_STOCK})
+        if (
+            instance is not None
+            and instance.iq_price_managed
+            and "price" in attrs
+            and attrs["price"] != instance.price
+        ):
+            raise serializers.ValidationError({"price": IQ_MANAGED_PRICE})
         return attrs
 
 

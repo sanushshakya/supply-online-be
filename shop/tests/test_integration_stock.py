@@ -1,5 +1,6 @@
 import json
 import uuid
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -17,6 +18,7 @@ SECRET = "stock-secret"
 EVENTS = "/integration/events/"
 SNAPSHOT = "/integration/stock/"
 MANAGED = "Stock for this product is managed in Supply Chain IQ."
+PRICE_MANAGED = "The price of this product is managed in Supply Chain IQ."
 
 
 @override_settings(IQ_WEBHOOK_SECRET=SECRET)
@@ -43,7 +45,9 @@ class StockChangedTests(TestCase):
         product = make_product(stock=50)
         response = self.post(EVENTS, self.stock_event((product, 7, 1)))
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(response.json(), {"status": "applied", "unknown_products": [], "stale": 0})
+        self.assertEqual(
+            response.json(), {"status": "applied", "unknown_products": [], "stale": 0, "price_rejected": []}
+        )
         product.refresh_from_db()
         self.assertEqual(
             (product.stock_quantity, product.iq_available, product.iq_stock_version, product.iq_managed),
@@ -95,7 +99,9 @@ class StockChangedTests(TestCase):
         ]
         response = self.post(EVENTS, payload)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"status": "partial", "unknown_products": [unknown], "stale": 0})
+        self.assertEqual(
+            response.json(), {"status": "partial", "unknown_products": [unknown], "stale": 0, "price_rejected": []}
+        )
         product.refresh_from_db()
         self.assertEqual(product.stock_quantity, 4)
         bad = self.post(EVENTS, {**self.stock_event(), "data": {"items": "x"}})
@@ -125,9 +131,110 @@ class StockChangedTests(TestCase):
         self.assertEqual(items[str(managed.product_id)], {
             "product_id": str(managed.product_id), "stock_quantity": 2,
             "iq_managed": True, "iq_available": 2, "iq_stock_version": 3,
+            "price": str(managed.price), "iq_price_managed": False,
         })
         self.assertFalse(items[str(plain.product_id)]["iq_managed"])
         self.assertEqual(self.post(SNAPSHOT, {}, secret="wrong").status_code, 401)
+
+
+@override_settings(IQ_WEBHOOK_SECRET=SECRET)
+class PriceChangedTests(TestCase):
+    post = StockChangedTests.post
+
+    def event(self, product, version, **price):
+        return {
+            "event_id": str(uuid.uuid4()), "event_type": "stock.changed", "occurred_at": "2026-10-18T10:00:00Z",
+            "data": {"items": [{"product_id": str(product.product_id), "online_available": 4,
+                                "version": version, **price}]},
+        }
+
+    def test_price_is_applied_and_marks_the_product(self):
+        product = make_product()
+        response = self.post(EVENTS, self.event(product, 1, price="2.49"))
+        self.assertEqual(response.json()["status"], "applied")
+        product.refresh_from_db()
+        self.assertEqual((product.price, product.iq_price_managed, product.stock_quantity),
+                         (Decimal("2.49"), True, 4))
+
+    def test_no_price_leaves_the_price_alone(self):
+        product = make_product()
+        before = product.price
+        self.post(EVENTS, self.event(product, 1))
+        product.refresh_from_db()
+        self.assertEqual((product.price, product.iq_price_managed), (before, False))
+
+    def test_stale_snapshot_does_not_move_the_price_back(self):
+        product = make_product()
+        self.post(EVENTS, self.event(product, 2, price="3.00"))
+        self.post(EVENTS, self.event(product, 1, price="9.00"))
+        product.refresh_from_db()
+        self.assertEqual(product.price, Decimal("3.00"))
+
+    def test_bad_prices_are_refused_but_stock_applies(self):
+        for version, bad in enumerate(["1000.00", "0", "-1", "1.999", "abc", "NaN", 5], start=1):
+            product = make_product(stock=0)
+            before = product.price
+            with self.assertLogs("shop.integration.stock", "WARNING"):
+                response = self.post(EVENTS, self.event(product, version, price=bad))
+            self.assertEqual(response.json()["status"], "partial", bad)
+            self.assertEqual(response.json()["price_rejected"], [str(product.product_id)], bad)
+            product.refresh_from_db()
+            self.assertEqual((product.price, product.iq_price_managed, product.stock_quantity), (before, False, 4))
+        top = make_product()
+        self.post(EVENTS, self.event(top, 1, price="999.99"))
+        top.refresh_from_db()
+        self.assertEqual(top.price, Decimal("999.99"))
+
+
+class PriceEditBlockedTests(TestCase):
+    def setUp(self):
+        self.product = make_product()
+        Product.objects.filter(pk=self.product.pk).update(iq_price_managed=True, price=Decimal("2.00"))
+        self.product.refresh_from_db()
+        self.staff = User.objects.create_user(username="staff", password="x", is_staff=True, is_superuser=True)
+
+    def test_serializer_refuses_a_price_change(self):
+        changed = ProductSerializer(self.product, data={"price": "5.00"}, partial=True)
+        self.assertFalse(changed.is_valid())
+        self.assertEqual(changed.errors["price"], [PRICE_MANAGED])
+        same = ProductSerializer(self.product, data={"price": "2.00", "iq_price_managed": False}, partial=True)
+        self.assertTrue(same.is_valid(), same.errors)
+        same.save()
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.iq_price_managed)
+
+    def test_price_by_barcode_refuses(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("update_product_price_by_barcode"), {
+            "price_update_product_barcode": self.product.barcode, "price_update_new_price": "5.00",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.price, Decimal("2.00"))
+
+    def test_admin_shows_price_read_only(self):
+        from django.contrib.admin.sites import site
+
+        admin = site._registry[Product]
+        request = type("R", (), {"user": self.staff})()
+        self.assertIn("price", admin.get_readonly_fields(request, self.product))
+        self.assertNotIn("price", admin.get_readonly_fields(request, make_product()))
+
+    @override_settings(WEBSITE_PROFIT_PERCENTAGE=20)
+    def test_epos_sync_skips_iq_priced_products(self):
+        import pandas as pd
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        plain = make_product()
+        csv = pd.DataFrame({"PLU": [self.product.barcode, plain.barcode], "RetailPrice": [7.0, 7.0]})
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("sync_data_with_epos"), {"epos_sync_file": SimpleUploadedFile(
+            "f.csv", csv.to_csv(index=False).encode(), content_type="text/csv")})
+        self.assertEqual(response.json(), {"success": True, "updated": 1, "skipped_iq_managed": 1})
+        self.product.refresh_from_db()
+        plain.refresh_from_db()
+        self.assertEqual(self.product.price, Decimal("2.00"))
+        self.assertNotEqual(plain.price, Decimal("2.00"))
 
 
 class StockEditBlockedTests(TestCase):

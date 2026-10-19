@@ -76,12 +76,14 @@ class IntegrationEventView(SignedIntegrationView):
 
 
 class StockSnapshotView(SignedIntegrationView):
-    """POST /integration/stock/ — every product's stock, for IQ's nightly comparison."""
+    """POST /integration/stock/ — every product's stock and price, for IQ's nightly comparison."""
 
     def handle(self, body):
         from shop.models import Product
 
         rows = Product.all_objects.values(
-            "product_id", "stock_quantity", "iq_managed", "iq_available", "iq_stock_version"
+            "product_id", "stock_quantity", "iq_managed", "iq_available", "iq_stock_version", "price", "iq_price_managed"
         )
-        return Response({"items": [{**row, "product_id": str(row["product_id"])} for row in rows]})
+        return Response({"items": [
+            {**row, "product_id": str(row["product_id"]), "price": str(row["price"])} for row in rows
+        ]})

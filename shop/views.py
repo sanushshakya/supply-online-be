@@ -99,6 +99,7 @@ from .models import (
     PushSubscription,
 )
 from .serializers import (
+    IQ_MANAGED_PRICE,
     IQ_MANAGED_STOCK,
     ProductSerializer,
     CategorySerializer,
@@ -3429,6 +3430,9 @@ def update_product_by_product_id(request, product_id):
         if "stock_quantity" in serializer.errors:
             messages.error(request, IQ_MANAGED_STOCK)
             return redirect("product_management")
+        if serializer.errors.get("price") == [IQ_MANAGED_PRICE]:
+            messages.error(request, IQ_MANAGED_PRICE)
+            return redirect("product_management")
         messages.error(
             request, "Error updating product. Error while serializer validation"
         )
@@ -4112,6 +4116,9 @@ def update_product_price_by_barcode(request):
         new_price = post_data.get("price_update_new_price")
         with transaction.atomic():
             product = Product.objects.get(barcode=barcode.strip())
+            if product.iq_price_managed:
+                messages.error(request, IQ_MANAGED_PRICE)
+                return redirect("product_management")
             if new_price:
                 product.price = new_price
             else:
@@ -4252,9 +4259,17 @@ def sync_data_with_epos(request):
 
         barcodes_from_file = set(barcode_to_price.keys())
 
-        # take the intersection between the barcodes from file and barcodes in our system
-        barcodes_in_db = set(Product.objects.values_list("barcode", flat=True))
+        # take the intersection between the barcodes from file and barcodes in our system.
+        # Prices Supply Chain IQ manages are never overwritten from the EPOS file.
+        barcodes_in_db = set(
+            Product.objects.filter(iq_price_managed=False).values_list("barcode", flat=True)
+        )
         barcodes_to_process = list(barcodes_in_db.intersection(barcodes_from_file))
+        skipped_iq_managed = len(
+            barcodes_from_file.intersection(
+                Product.objects.filter(iq_price_managed=True).values_list("barcode", flat=True)
+            )
+        )
 
         for barcode_batch in chunked(barcodes_to_process, BATCH_SIZE):
             for barcode in barcode_batch:
@@ -4295,6 +4310,7 @@ def sync_data_with_epos(request):
                 {
                     "count": len(results),
                     "data": results,
+                    "skipped_iq_managed": skipped_iq_managed,
                 }
             )
 
@@ -4302,6 +4318,7 @@ def sync_data_with_epos(request):
             {
                 "success": True,
                 "updated": len(results),
+                "skipped_iq_managed": skipped_iq_managed,
             }
         )
 

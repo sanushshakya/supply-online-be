@@ -201,6 +201,9 @@ class Product(models.Model):
     iq_managed = models.BooleanField(default=False)
     iq_available = models.IntegerField(null=True, blank=True)
     iq_stock_version = models.PositiveBigIntegerField(default=0)
+    # Price owned by Supply Chain IQ: set when a stock.changed item first carries a price; then the price can no
+    # longer be edited here and the EPOS CSV sync skips the product.
+    iq_price_managed = models.BooleanField(default=False)
     ingredients = models.TextField(blank=True, null=True)
     allergens = models.TextField(blank=True, null=True)
     net_contents = models.CharField(max_length=20, null=True, blank=True)
