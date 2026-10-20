@@ -12,3 +12,7 @@ staticfiles/
 
 # ignore sqlite db
 db.sqlite3
+# local data and keys never go into an image
+*.pem
+*.sqlite3
+seed/

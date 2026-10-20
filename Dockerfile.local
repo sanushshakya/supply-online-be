@@ -1,0 +1,25 @@
+# Image for local runs (the workspace docker compose). Production builds keep using Dockerfile.
+# Settings come from the environment at run time: ENV=local, POSTGRESDB_* / DB_HOST for Postgres, REDIS_URL,
+# IQ_WEBHOOK_URL / IQ_WEBHOOK_SECRET. No secrets are baked in.
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN useradd --create-home --uid 1000 app && chown app:app /app
+COPY --chown=app:app . .
+
+USER app
+
+# Static files for the admin (served by WhiteNoise). The local settings need no secrets to load.
+# Runs as app so the log file settings create stays writable at run time.
+RUN python manage.py collectstatic --noinput
+EXPOSE 8000
+
+# The compose file runs migrate + seed first; it overrides this for the Celery worker.
+CMD ["uvicorn", "m18_world_foods_backend.asgi:application", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,5 +1,14 @@
 This is the backend application for m18 World Foods E-commerce web app.
 
+## Local Docker (with Supply Chain IQ)
+
+`Dockerfile.local` is the image the workspace-level `docker-compose.yml` uses (production keeps `Dockerfile`).
+Setting `POSTGRESDB_NAME` switches the database to Postgres in any `ENV` (`POSTGRESDB_*`, `DB_HOST`, `DB_PORT`).
+`python manage.py seed --fixture <dumpdata.json>` loads a data snapshot into an empty database (skipped once
+it has users; model signals are muted while it loads) and creates the superuser from
+`DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_EMAIL` / `DJANGO_SUPERUSER_PASSWORD` if missing; an existing
+user is promoted and keeps its password.
+
 ## Supply Chain IQ integration
 
 When a Stripe payment confirms an order, the shop records an `order.paid` event in an outbox (`shop.integration.IntegrationEvent`, same transaction as the stock commit) and Celery posts it to Supply Chain IQ straight after the commit. IQ takes the units from its batches (oldest expiry first), so its stock and demand include web sales.

@@ -324,7 +324,8 @@ if ENVIRONMENT == "local":
     SESSION_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SAMESITE = "None"
 
-if ENVIRONMENT == "prod":
+# Postgres in prod, or anywhere POSTGRESDB_NAME is set (e.g. the workspace docker compose).
+if ENVIRONMENT == "prod" or os.getenv("POSTGRESDB_NAME"):
     DATABASES["default"] = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("POSTGRESDB_NAME"),
