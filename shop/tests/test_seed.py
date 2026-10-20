@@ -19,14 +19,14 @@ class SeedCommandTests(TestCase):
     def snapshot(self):
         user = User.objects.create_user(username="amy", email="amy@example.com", password="amy-pw-123")
         UserProfile.objects.create(user=user, fullname="Amy")  # its receiver adds the loyalty account
-        handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-        handle.close()
-        self.addCleanup(os.unlink, handle.name)
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            path = handle.name
+        self.addCleanup(os.unlink, path)
         call_command("dumpdata", "auth.user", "shop.userprofile", "rewards.loyaltyaccount",
-                     output=handle.name, stdout=StringIO())
+                     output=path, stdout=StringIO())
         barcode = LoyaltyAccount.objects.get().barcode_number
         User.objects.all().delete()
-        return handle.name, barcode
+        return path, barcode
 
     def seed(self, fixture=None, **env):
         args = ["--fixture", fixture] if fixture else []
