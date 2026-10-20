@@ -2248,6 +2248,19 @@ class TestMiscViews(TestCase):
         self.assertEqual(self.order.status, "Dispatched")
         self.assertEqual(response.json()["status"], "Dispatched")
 
+    @patch("shop.tasks.notify_order_status_change.apply_async", side_effect=ConnectionError("broker down"))
+    def test_update_order_status_survives_broker_outage(self, apply_async):
+        self.client.login(username="staff_user", password="testpassword")
+        response = self.client.post(
+            reverse("update_order_status"),
+            {"order_id": self.order.order_id, "new_status": "Dispatched"},
+            format="json",
+        )
+        self.order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.order.status, "Dispatched")
+        apply_async.assert_called_once()
+
     def test_update_order_status_same_status(self):
         self.client.login(username="staff_user", password="testpassword")
         post_data = {

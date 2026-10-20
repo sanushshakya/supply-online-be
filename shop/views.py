@@ -3831,6 +3831,16 @@ def export_products_excel(request):
         return redirect("product_management")
 
 
+def _queue_order_status_push(*args):
+    """Queue the customer's push notification. A broker outage must not fail the status change, which is already saved."""
+    from shop.tasks import notify_order_status_change
+
+    try:
+        notify_order_status_change.apply_async(args=list(args), countdown=0)
+    except Exception as exc:  # noqa: BLE001 - e.g. Redis down; the order and email already went through
+        logger.warning("Could not queue the order status push for %s: %s", args[0], type(exc).__name__)
+
+
 @login_required
 @user_passes_test(is_staff_user)
 def update_order_status(request):
@@ -3849,12 +3859,7 @@ def update_order_status(request):
                 if new_status != order.status:
                     order.status = new_status
                     order.save()
-                    # PWA: Fire Celery task — non-blocking ✅
-                    from shop.tasks import notify_order_status_change
-                    notify_order_status_change.apply_async(
-                        args=[order_id, new_status],
-                        countdown=0,
-                    )
+                    _queue_order_status_push(order_id, new_status)
                     serializer = OrderSerializer(order)
                     return JsonResponse(serializer.data)
                 else:
@@ -3946,12 +3951,7 @@ def dispatch_order(request, order_id):
                 request, "Order dispatched. Email sending to the customer failed"
             )
             
-        # PWA: Fire Celery task — non-blocking ✅
-        from shop.tasks import notify_order_status_change
-        notify_order_status_change.apply_async(
-            args=[order_id, OrderStatus.DISPATCHED.value, delivery_partner],
-            countdown=0,
-        )
+        _queue_order_status_push(order_id, OrderStatus.DISPATCHED.value, delivery_partner)
 
         # Redirect to order management page
         return redirect("order_management")
