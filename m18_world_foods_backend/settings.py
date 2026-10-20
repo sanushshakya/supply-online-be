@@ -147,7 +147,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 ROOT_URLCONF = "m18_world_foods_backend.urls"
 
 TEMPLATES = [
@@ -259,8 +258,11 @@ AWS_S3_OBJECT_PARAMETERS = {
 AWS_SQS_URL_FOR_DATA_DUMP_TO_BE_USED_BY_EPOS = os.getenv(
     "AWS_SQS_URL_FOR_DATA_DUMP_TO_BE_USED_BY_EPOS", None) # the content of this sqs will be used by the epos backend to update its product stock
 
-# Configure the default file storage
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+# Uploaded files go to S3; static files are served by WhiteNoise from the hashed manifest built by collectstatic.
+STORAGES = {
+    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 
 # if not (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_S3_STORAGE_BUCKET_NAME and AWS_SQS_URL_FOR_DATA_DUMP_TO_BE_USED_BY_EPOS):

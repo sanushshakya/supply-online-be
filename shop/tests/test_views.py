@@ -1,7 +1,7 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 import csv
 import io
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock
 import datetime
 from django.urls import reverse
@@ -14,6 +14,12 @@ from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+
+# The staff pages render {% static %}; tests have no collectstatic manifest, so use the plain storage.
+PLAIN_STATIC = override_settings(STORAGES={
+    **settings.STORAGES,
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
 from django.core.exceptions import PermissionDenied
 from unittest.mock import Mock
 import json
@@ -149,8 +155,8 @@ class ProductViewSetTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "Test Product")
         self.assertEqual(response.data["price"], "10.00")
-        self.assertEqual(response.data["category"], 1)
-        self.assertEqual(response.data["product_department"], 1)
+        self.assertEqual(response.data["category"], self.category.pk)
+        self.assertEqual(response.data["product_department"], self.product_department.pk)
         self.assertTrue("cost_price" not in response.data)
         self.assertTrue("profit_margin" not in response.data)
         self.assertEqual(response.data["description"], "Test description here")
@@ -1312,6 +1318,7 @@ class OrderViewSetTests(APITestCase):
         self.assertEqual(response7.status_code, status.HTTP_204_NO_CONTENT)
 
     # Mock the send_email function
+    @override_settings(STAFF_EMAIL_ADDRESSES=["staff@example.com"])
     @patch("shop.views.send_email", side_effect=mock_send_email)
     def test_create_order_from_cart(
         self,
@@ -1881,6 +1888,7 @@ class PromotionViewSetTest(APITestCase):
         self.assertEqual(len(response_data), 0)
 
 
+@PLAIN_STATIC
 class TestMiscViews(TestCase):
     def setUp(self):
         self.client = Client()
@@ -2098,7 +2106,7 @@ class TestMiscViews(TestCase):
 
     def test_notification_details_view_logged_in_staff(self):
         self.client.login(username="staff_user", password="testpassword")
-        response = self.client.get(reverse("notification_details", kwargs={"id": 1}))
+        response = self.client.get(reverse("notification_details", kwargs={"id": self.notifications.pk}))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "notification_details.html")
 
@@ -2390,6 +2398,7 @@ class TestMiscViews(TestCase):
         self.assertJSONEqual(response.content, {"marketing_opted_users_email": ""})
 
 
+@PLAIN_STATIC
 class StaffLoginViewTestCase(TestCase):
     def setUp(self):
         # Create a staff member
@@ -2676,7 +2685,8 @@ class UploadEposDataDumpTests(TestCase):
         """Utility method to decode response content"""
         return response.content.decode("utf-8")
 
-    def test_upload_success(self):
+    @patch("shop.views.store_file_in_s3")
+    def test_upload_success(self, store_file_in_s3):
         """Test that a valid CSV file upload succeeds"""
         csv_file = SimpleUploadedFile(
             "test.csv", b"some,test,data", content_type="text/csv"
@@ -2684,6 +2694,7 @@ class UploadEposDataDumpTests(TestCase):
         response = self.client.post(self.upload_url, {"file": csv_file})
         self.assertEqual(response.status_code, 200)
         self.assertIn("File uploaded successfully", self.get_response_content(response))
+        store_file_in_s3.assert_called_once()
 
     def test_no_file_uploaded(self):
         """Test that no file upload returns a bad request"""

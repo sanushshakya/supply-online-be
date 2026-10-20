@@ -1,4 +1,11 @@
-This is the backend application for m18 World Foods E-commerce web app.
+This is the backend application for m18 World Foods E-commerce web app (Django 5.2 LTS, Python 3.11).
+
+## Tests and CI
+
+`python manage.py test` runs the whole suite on SQLite; set `POSTGRESDB_NAME`/`POSTGRESDB_USER`/`POSTGRESDB_PASS`/`DB_HOST`/`DB_PORT`
+to run it on Postgres (the user needs CREATEDB). GitHub Actions (`.github/workflows/ci.yml`) runs `check`, the missing-migration
+check and the suite on Python 3.11 + Postgres 16, and builds `Dockerfile.local` on every push. Tests must not depend on
+deployment settings (S3, staff emails, a collectstatic manifest): patch or `override_settings` them.
 
 ## Local Docker (with Supply Chain IQ)
 

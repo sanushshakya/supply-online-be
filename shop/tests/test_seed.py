@@ -30,7 +30,9 @@ class SeedCommandTests(TestCase):
 
     def seed(self, fixture=None, **env):
         args = ["--fixture", fixture] if fixture else []
-        with mock.patch.dict(os.environ, env):
+        # Start from an environment without the seed variables (the Docker image sets them).
+        base = {k: v for k, v in os.environ.items() if not k.startswith("DJANGO_SUPERUSER_")}
+        with mock.patch.dict(os.environ, {**base, **env}, clear=True):
             call_command("seed", *args, stdout=StringIO())
 
     def test_loads_snapshot_without_receivers_and_creates_superuser(self):
