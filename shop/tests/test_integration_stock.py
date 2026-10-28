@@ -124,6 +124,9 @@ class StockChangedTests(TestCase):
 
     def test_snapshot_lists_every_product(self):
         managed, plain = make_product(stock=2), make_product(stock=9)
+        Product.all_objects.filter(pk=managed.pk).update(barcode="5000000000017", alternate_barcodes=["111", "222"])
+        Product.all_objects.filter(pk=plain.pk).update(barcode=None, alternate_barcodes=[])
+        managed.refresh_from_db()
         self.post(EVENTS, self.stock_event((managed, 2, 3)))
         response = self.post(SNAPSHOT, {})
         self.assertEqual(response.status_code, 200)
@@ -132,8 +135,11 @@ class StockChangedTests(TestCase):
             "product_id": str(managed.product_id), "stock_quantity": 2,
             "iq_managed": True, "iq_available": 2, "iq_stock_version": 3,
             "price": str(managed.price), "iq_price_managed": False,
+            "name": managed.name, "barcode": "5000000000017", "alternate_barcodes": ["111", "222"],
         })
         self.assertFalse(items[str(plain.product_id)]["iq_managed"])
+        self.assertEqual((items[str(plain.product_id)]["barcode"], items[str(plain.product_id)]["alternate_barcodes"]),
+                         (None, []))
         self.assertEqual(self.post(SNAPSHOT, {}, secret="wrong").status_code, 401)
 
 
