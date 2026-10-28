@@ -76,14 +76,22 @@ class IntegrationEventView(SignedIntegrationView):
 
 
 class StockSnapshotView(SignedIntegrationView):
-    """POST /integration/stock/ — every product's stock and price, for IQ's nightly comparison."""
+    """
+    POST /integration/stock/ — every product's stock, price, name and barcodes, for IQ's nightly comparison and
+    its catalogue import (which matches IQ products by barcode; the public API does not show the main barcode).
+    """
 
     def handle(self, body):
         from shop.models import Product
 
         rows = Product.all_objects.values(
-            "product_id", "stock_quantity", "iq_managed", "iq_available", "iq_stock_version", "price", "iq_price_managed"
+            "product_id", "stock_quantity", "iq_managed", "iq_available", "iq_stock_version", "price", "iq_price_managed",
+            "name", "barcode", "alternate_barcodes",
         )
         return Response({"items": [
-            {**row, "product_id": str(row["product_id"]), "price": str(row["price"])} for row in rows
+            {
+                **row, "product_id": str(row["product_id"]), "price": str(row["price"]),
+                "alternate_barcodes": list(row["alternate_barcodes"] or []),
+            }
+            for row in rows
         ]})
