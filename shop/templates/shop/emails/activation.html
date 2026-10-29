@@ -1,0 +1,16 @@
+{% extends "shop/emails/base.html" %}
+{% block body %}
+<p>Welcome to {{ shop.name }}! We're excited to have you on board.</p>
+<p>To get started, please activate your account by clicking the link below:</p>
+<p><a href="{{ link }}">{{ link }}</a></p>
+<p>The activation link is valid for 2 hours, after which you will have to request a new activation link.
+If the link above doesn't work, copy and paste it into your browser. Once your account is activated, you'll be able to:</p>
+<ul>
+<li>Place your orders and track them</li>
+<li>Get notified about latest products and offers</li>
+<li>Get alerts for out of stock products as soon as they become available</li>
+<li>Manage your product likes and reviews</li>
+</ul>
+<p>If you have any questions or need assistance, feel free to reach out to our support team at {{ shop.contact_email }}.</p>
+<p>Thank you for choosing {{ shop.name }}. We look forward to providing you with the best world foods experience possible.</p>
+{% endblock %}

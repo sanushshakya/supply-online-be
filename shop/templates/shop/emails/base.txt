@@ -1,0 +1,8 @@
+{% autoescape off %}Hi {{ first_name }},
+{% block body %}{% endblock %}
+Regards,
+{{ shop.name }} Team
+
+{{ shop.name }}, {{ shop.address }}
+Privacy Policy: {{ shop.privacy_url }}
+Terms of Service: {{ shop.terms_url }}{% endautoescape %}

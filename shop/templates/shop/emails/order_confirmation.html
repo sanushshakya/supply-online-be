@@ -1,0 +1,12 @@
+{% extends "shop/emails/base.html" %}
+{% block body %}
+<p>Thank you for your order!</p>
+<p>We are excited to let you know that your order has been successfully placed. Here are the details of your order:</p>
+<p><b><u>Order Summary</u>:</b><br>
+<b>Order Number:</b> {{ order.order_id }}<br>
+<b>Order Date:</b> {{ order.created_at|date:"Y-m-d" }}<br>
+<b>Order Amount:</b> {{ shop.currency }}{{ order.total_amount }}</p>
+<p>We will send you another email once your order has been dispatched.<br>
+If you have any questions, please feel free to contact our customer service team at {{ shop.contact_email }}.</p>
+<p>Thank you for choosing {{ shop.name }}. We hope you enjoy your purchase!</p>
+{% endblock %}

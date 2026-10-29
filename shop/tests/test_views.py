@@ -920,6 +920,16 @@ class UserProfileViewSetTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_password_reset_email_escapes_the_name(self):
+        self.client.post("/shop/api/users/register/", self.user_data)
+        User.objects.filter(username="xyz@gmail.com").update(first_name="<script>x</script> & Co")
+        with patch("shop.views.send_email", return_value=True) as send:
+            self.client.post("/shop/api/users/request-password-reset-link/", {"email": "xyz@gmail.com"})
+        subject, text, recipients, html = send.call_args.args
+        self.assertIn("Hi &lt;script&gt;x&lt;/script&gt; &amp; Co", html)
+        self.assertIn("Hi <script>x</script> & Co", text)
+        self.assertNotIn("<br>", text)
+
     def test_request_password_reset_link_invalid_email(self):
         response = self.client.post(
             "/shop/api/users/request-password-reset-link/",
@@ -2325,6 +2335,20 @@ class TestMiscViews(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.order.status, OrderStatus.DISPATCHED.value)
         mock_send_email.assert_called_once()
+
+    def test_dispatch_email_escapes_customer_and_staff_input(self):
+        self.order.user.first_name = "<script>x</script>"
+        self.order.user.save()
+        self.client.login(username="staff_user", password="testpassword")
+        url = reverse("dispatch_order", kwargs={"order_id": self.order.order_id})
+        with patch("shop.views.send_email", return_value=True) as send:
+            self.client.post(url, {"delivery_partner": "Royal & Mail", "tracking_id": "<b>TR1</b>"})
+        subject, text, recipients, html = send.call_args.args
+        self.assertIn("Hi &lt;script&gt;x&lt;/script&gt;", html)
+        self.assertIn("Royal &amp; Mail", html)
+        self.assertIn("&lt;b&gt;TR1&lt;/b&gt;", html)
+        self.assertNotIn("<script>", html)
+        self.assertIn("Royal & Mail", text)
 
     def test_dispatch_order_not_logged_in(self):
         url = reverse("dispatch_order", kwargs={"order_id": self.order.order_id})

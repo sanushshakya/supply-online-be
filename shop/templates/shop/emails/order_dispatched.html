@@ -1,0 +1,5 @@
+{% extends "shop/emails/base.html" %}
+{% block body %}
+<p>Your order with id {{ order_id }} has been dispatched via {{ delivery_partner }}. Here is your tracking id: {{ tracking_id }}.<br>
+If your tracking id is still not working within the next 36 hours, please contact us at {{ shop.contact_email }}.</p>
+{% endblock %}

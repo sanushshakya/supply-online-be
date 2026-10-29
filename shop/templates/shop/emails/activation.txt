@@ -1,0 +1,18 @@
+{% extends "shop/emails/base.txt" %}{% block body %}{% autoescape off %}
+Welcome to {{ shop.name }}! We're excited to have you on board.
+
+To get started, please activate your account by opening the link below:
+
+{{ link }}
+
+The activation link is valid for 2 hours, after which you will have to request a new activation link. Once your account is activated, you'll be able to:
+
+- Place your orders and track them
+- Get notified about latest products and offers
+- Get alerts for out of stock products as soon as they become available
+- Manage your product likes and reviews
+
+If you have any questions or need assistance, feel free to reach out to our support team at {{ shop.contact_email }}.
+
+Thank you for choosing {{ shop.name }}. We look forward to providing you with the best world foods experience possible.
+{% endautoescape %}{% endblock %}
