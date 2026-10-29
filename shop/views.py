@@ -27,6 +27,7 @@ import stripe
 from django.middleware.csrf import get_token
 from django.conf import settings
 from .utils import send_email
+from .emails import render_email
 from .exceptions import InsufficientStockError
 from .integration.models import emit
 from .stock import (
@@ -65,7 +66,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth.models import update_last_login
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
 
 
@@ -151,15 +151,10 @@ from .utils import send_push_to_user
 
 logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_API_KEY
-client_contact_email = "contactus@m18foods.co.uk"
 client_name = "M18 Foods"
 client_address = (
     "Unit 6, St James Centre East Rd, Temple Fields, Harlow CM20 2SX, United Kingdom"
 )
-link_to_client_privacy_policy = f"{settings.DOMAIN_BASE_URL}/policy"
-link_to_client_tnc = f"{settings.DOMAIN_BASE_URL}/terms-of-service"
-currency = "£"
-html_email_footer = f"<a href={link_to_client_privacy_policy}>Privacy Policy</a> | <a href={link_to_client_tnc}>Terms of Service</a>"
 
 
 # qr login view
@@ -1177,44 +1172,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
             # Compose activation email
             subject = f"Reset {client_name} Account password"
-            text_email_message = dedent(f"""
-                    Hi {user.first_name},
-
-                    We received a request to reset your password for your {client_name} account. If you made this request, you can reset your password by clicking the link below:
-
-                    {password_reset_link}
-
-                    If the button above doesn’t work, copy and paste the following link into your browser. For your security, this password reset link will expire in 2 hours.
-                    To keep your account secure, remember to choose a strong, unique password that you don't use for any other accounts.
-
-                    If you need any assistance or did not request a password reset, contact us immediately at {client_contact_email}.
-
-                    Regards,
-                    {client_name} Team
-
-                    {client_name}, {client_address}
-                    """)
-            html_email_message = format_html(
-                dedent(
-                    f"""
-                    Hi {user.first_name}, <br><br>
-
-                    We received a request to reset your password for your {client_name} account. If you made this request, you can reset your password by clicking the link below: <br><br>
-
-                    {password_reset_link}<br><br>
-
-                    If the button above doesn’t work, copy and paste the following link into your browser. For your security, this password reset link will expire in 2 hours. <br>
-                    To keep your account secure, remember to choose a strong, unique password that you don't use for any other accounts.<br><br>
-
-                    If you need any assistance or did not request a password reset, contact us immediately at {client_contact_email}.<br><br>
-
-                    Regards,<br>
-                    {client_name} Team<br><br>
-
-                    {client_name}, {client_address}<br>
-                    {html_email_footer}
-                    """
-                )
+            text_email_message, html_email_message = render_email(
+                "password_reset", first_name=user.first_name, link=password_reset_link
             )
             recipient_list = [email]
 
@@ -1507,62 +1466,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         # Compose activation email
         subject = f"Activate Your {client_name} Account"
-        text_email_message = dedent(f"""
-        Hi {user.first_name or ""},
-
-        Welcome to {client_name}! We're excited to have you on board.
-
-        To get started, please activate your account by clicking the link below:
-
-        {activation_link}
-
-        The activation link is valid for 2 hours after which you will have to request a new activation link again.
-        If the button above doesn’t work, copy and paste the following link into your browser. Once your account is activated, you’ll be able to:
-
-        - Place your orders and track them
-        - Get notified about latest products and offers
-        - Get alerts for out of stock products as soon as they become available
-        - Manage your product likes and reviews
-
-        If you have any questions or need assistance, feel free to reach out to our support team at {client_contact_email}.
-
-        Thank you for choosing {client_name}. We look forward to providing you with the best world foods experience possible.
-
-        Regards,
-        {client_name} Team
-
-        {client_name}, {client_address}
-        {html_email_footer}
-        """)
-
-        html_email_message = format_html(
-            dedent(f"""
-        Hi {user.first_name or ""}, <br><br>
-
-        Welcome to {client_name}! We're excited to have you on board. <br><br>
-
-        To get started, please activate your account by clicking the link below: <br><br>
-
-        {activation_link} <br><br>
-
-        The activation link is valid for 2 hours after which you will have to request a new activation link again. <br>
-        If the button above doesn’t work, copy and paste the following link into your browser. Once your account is activated, you’ll be able to: <br><br>
-
-        - Place your orders and track them<br>
-        - Get notified about latest products and offers<br>
-        - Get alerts for out of stock products as soon as they become available<br>
-        - Manage your product likes and reviews<br><br>
-
-        If you have any questions or need assistance, feel free to reach out to our support team at {client_contact_email}.<br><br>
-
-        Thank you for choosing {client_name}. We look forward to providing you with the best world foods experience possible. <br><br>
-
-        Regards,<br>
-        {client_name} Team <br><br>
-
-        {client_name}, {client_address} <br>
-        {html_email_footer}
-        """)
+        text_email_message, html_email_message = render_email(
+            "activation", first_name=user.first_name or "", link=activation_link
         )
         recipient_list = [email]
 
@@ -3069,56 +2974,10 @@ def stripe_webhook(request):
                         )
 
                     email_subject = "Order Confirmation"
-                    text_email_message = dedent(f"""
-                                    Hi {associated_order.user.first_name},
-
-                                    Thank you for your order!
-
-                                    We are excited to let you know that your order has been successfully placed. Here are the details of your order:
-
-                                    Order Summary:
-
-                                    Order Number: {associated_order.order_id}
-                                    Order Date: {associated_order.created_at.date()}
-                                    Order Amount: {currency}{associated_order.total_amount}
-
-                                    We will send you another email once your order has been dispatched.
-
-                                    If you have any questions, please feel free to contact our customer service team at {client_contact_email}
-
-                                    Thank you for choosing {client_name}. We hope you enjoy your purchase!<br>
-
-                                    Best regards,
-                                    {client_name} Team
-
-                                    {client_name}, {client_address}
-                                """)
-                    html_email_message = format_html(
-                        dedent(f"""
-                                    Hi {associated_order.user.first_name},<br><br>
-
-                                    Thank you for your order!<br><br>
-
-                                    We are excited to let you know that your order has been successfully placed. Here are the details of your order:<br><br>
-
-                                    <b><u>Order Summary</u>:</b><br>
-
-                                    <b>Order Number:</b> {associated_order.order_id}<br>
-                                    <b>Order Date:</b> {associated_order.created_at.date()}<br>
-                                    <b>Order Amount:</b> {currency}{associated_order.total_amount}<br><br>
-
-                                    We will send you another email once your order has been dispatched.<br>
-
-                                    If you have any questions, please feel free to contact our customer service team at {client_contact_email}<br>
-
-                                    Thank you for choosing {client_name}. We hope you enjoy your purchase!<br><br>
-
-                                    Best regards,<br>
-                                    {client_name} Team<br><br>
-
-                                    {client_name}, {client_address} <br>
-                                    {html_email_footer}
-                                """)
+                    text_email_message, html_email_message = render_email(
+                        "order_confirmation",
+                        first_name=associated_order.user.first_name,
+                        order=associated_order,
                     )
                     if send_email(
                         subject=email_subject,
@@ -3913,32 +3772,12 @@ def dispatch_order(request, order_id):
 
         # send email to the user
         subject = f"Order {order_id} Dispatched"
-        text_email_message = dedent(f""" 
-                Hi {user.first_name},
-
-                Your order with id {order_id} has been dispatched via {delivery_partner}. Here is your tracking id: {tracking_id}.
-                If your tracking id is still not working within next 36 hours, please contact us at {client_contact_email}.
-
-                Regards,
-                {client_name} Team
-
-                {client_name}, {client_address}
-                """)
-        html_email_message = format_html(
-            dedent(
-                f""" 
-                Hi {user.first_name}, <br><br>
-
-                Your order with id {order_id} has been dispatched via {delivery_partner}. Here is your tracking id: {tracking_id}.
-                If your tracking id is still not working within next 36 hours, please contact us at {client_contact_email}.<br><br>
-
-                Regards,<br>
-                {client_name} Team<br><br>
-
-                {client_name}, {client_address}<br>
-                {html_email_footer}
-                """
-            )
+        text_email_message, html_email_message = render_email(
+            "order_dispatched",
+            first_name=user.first_name,
+            order_id=order_id,
+            delivery_partner=delivery_partner,
+            tracking_id=tracking_id,
         )
         recipient_list = [user.email]
 

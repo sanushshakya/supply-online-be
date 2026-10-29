@@ -1,0 +1,15 @@
+{% extends "shop/emails/base.txt" %}{% block body %}{% autoescape off %}
+Thank you for your order!
+
+We are excited to let you know that your order has been successfully placed. Here are the details of your order:
+
+Order Summary:
+Order Number: {{ order.order_id }}
+Order Date: {{ order.created_at|date:"Y-m-d" }}
+Order Amount: {{ shop.currency }}{{ order.total_amount }}
+
+We will send you another email once your order has been dispatched.
+If you have any questions, please feel free to contact our customer service team at {{ shop.contact_email }}.
+
+Thank you for choosing {{ shop.name }}. We hope you enjoy your purchase!
+{% endautoescape %}{% endblock %}

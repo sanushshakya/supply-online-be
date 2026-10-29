@@ -7,6 +7,14 @@ to run it on Postgres (the user needs CREATEDB). GitHub Actions (`.github/workfl
 check and the suite on Python 3.11 + Postgres 16, and builds `Dockerfile.local` on every push. Tests must not depend on
 deployment settings (S3, staff emails, a collectstatic manifest): patch or `override_settings` them.
 
+## Customer emails
+
+Password reset, account activation, order confirmation and order dispatched emails are Django templates in
+`shop/templates/shop/emails/` (`<name>.html`, autoescaped, and `<name>.txt`, plain text, sharing `base.html`/`base.txt` for the
+greeting and footer). Views call `shop.emails.render_email(name, **context)`, which returns `(text, html)` and adds the shop's
+name, address and policy links as `shop`. Never build email HTML with f-strings or `format_html(f"...")`: a customer's name or a
+tracking id would go into the HTML unescaped (`shop/tests/test_emails.py` checks this).
+
 ## Local Docker (with Supply Chain IQ)
 
 `Dockerfile.local` is the image the workspace-level `docker-compose.yml` uses (production keeps `Dockerfile`).
