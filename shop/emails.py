@@ -2,7 +2,7 @@
 Customer emails, rendered from templates in ``shop/templates/shop/emails/``.
 
 Each email is a pair: ``<name>.html`` (autoescaped, so a customer's name or a tracking id can never add markup)
-and ``<name>.txt`` (plain text, autoescape off). Never build email HTML with f-strings or ``format_html(f"...")``.
+and ``<name>.txt`` (plain text, autoescape off). Never build email HTML with f-strings, not even inside format_html.
 """
 
 from django.conf import settings

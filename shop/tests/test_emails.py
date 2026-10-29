@@ -63,8 +63,25 @@ class RenderEmailTests(SimpleTestCase):
         self.assertIn("<i>TR1</i>", text)
 
 
+FSTRING_HTML = re.compile(r"""format_html\(\s*(dedent\(\s*)?f["']|html_\w*\s*=\s*f["']\s*<""")
+
+
+def fstring_html(source):
+    return FSTRING_HTML.findall(source)
+
+
 class NoFStringHtmlTests(SimpleTestCase):
-    def test_no_html_is_built_with_f_strings_in_email_code(self):
-        source = (Path(__file__).resolve().parents[1] / "views.py").read_text()
-        self.assertFalse("format_html(" in source, "views.py still builds email HTML with format_html")
-        self.assertFalse(re.search(r'html_email_footer\s*=\s*f"', source))
+    def test_the_check_catches_the_old_pattern(self):
+        self.assertTrue(fstring_html('x = format_html(\n    dedent(\n f"""Hi {name}<br>"""))'))
+        self.assertTrue(fstring_html('html_email_footer = f"<a href={url}>Privacy</a>"'))
+        self.assertFalse(fstring_html('format_html("<b>{}</b>", name)'))
+
+    def test_no_html_is_built_with_f_strings_anywhere_in_the_app(self):
+        root = Path(__file__).resolve().parents[2]
+        offenders = [
+            str(path.relative_to(root))
+            for path in root.rglob("*.py")
+            if not {".venv", "venv", "migrations", "tests"} & set(path.relative_to(root).parts)
+            and fstring_html(path.read_text(encoding="utf-8", errors="ignore"))
+        ]
+        self.assertEqual(offenders, [])
